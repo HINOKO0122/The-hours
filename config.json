@@ -1,8 +1,9 @@
 {
   "characters": [
-    { "type": "スライム", "baseValue": 10 },
-    { "type": "ドラゴン", "baseValue": 50 },
-    { "type": "フェニックス", "baseValue": 100 }
+    { "type": "スライム", "baseValue": 10, "weight": 50 },
+    { "type": "ゴブリン", "baseValue": 25, "weight": 30 },
+    { "type": "ドラゴン", "baseValue": 100, "weight": 15 },
+    { "type": "フェニックス", "baseValue": 500, "weight": 5 }
   ],
   "colors": [
     { "name": "赤", "prob": 0.13, "bonus": 1 },
