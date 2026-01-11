@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>キャラGet放置ゲーム</title>
+    <style>
+        body { font-family: sans-serif; background: #f0f0f0; padding: 20px; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .stats { font-size: 1.2em; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .btn { padding: 10px 20px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; }
+        .btn:disabled { background: #ccc; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 20px; }
+        .card { border: 1px solid #ddd; padding: 10px; border-radius: 5px; text-align: center; background: #fff; }
+        .set-char { border: 2px solid #28a745; background: #e8f5e9; }
+        .tab-menu { margin-top: 20px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="stats">
+        所持金: <span id="money">0</span>円<br>
+        セット中: <span id="active-char-name">なし</span> 
+        (毎秒 <span id="income-rate">0</span>円)
+    </div>
+
+    <button id="get-btn" class="btn" onclick="getCharacter()">キャラをGETする (1時間に1回)</button>
+    <p id="timer"></p>
+
+    <div class="tab-menu">
+        <button onclick="showTab('storage')">倉庫</button>
+        <button onclick="showTab('shop')">ショップ</button>
+        <button onclick="showTab('zukan')">図鑑</button>
+    </div>
+
+    <hr>
+
+    <div id="storage-tab">
+        <h3>倉庫 (並び替え: <select id="sort-select" onchange="renderStorage()"><option value="new">新しい順</option><option value="power">稼ぎ量順</option></select>)</h3>
+        <div id="storage-grid" class="grid"></div>
+    </div>
+
+    <div id="shop-tab" class="hidden">
+        <h3>ショップ</h3>
+        <div id="shop-list">
+            <p>個体値アップお守り (1000円): <button onclick="buyItem('luck')">購入</button></p>
+            <p>カラーチェンジ薬 (500円): <button onclick="buyItem('color')">購入</button></p>
+        </div>
+    </div>
+
+    <div id="zukan-tab" class="hidden">
+        <h3>図鑑</h3>
+        <div id="zukan-list"></div>
+    </div>
+</div>
+
+<script>
+// --- ゲームデータと初期化 ---
+let gameData = {
+    money: 0,
+    characters: [],
+    activeCharId: null,
+    lastGetTime: 0,
+    lastUpdate: Date.now(),
+    zukan: {}, // {charType: {colors: {red: 1}, maxIV: 100}}
+    items: { luckBoost: 0 }
+};
+
+let masterData = null;
+
+// データ読み込み
+async function init() {
+    const res = await fetch('data.json');
+    masterData = await res.json();
+    
+    const saved = localStorage.getItem('myIdleGame');
+    if (saved) {
+        gameData = JSON.parse(saved);
+        calcOfflineEarnings();
+    }
+    
+    setInterval(update, 1000);
+    renderStorage();
+    renderZukan();
+}
+
+// オフライン収益計算
+function calcOfflineEarnings() {
+    const now = Date.now();
+    const diffSeconds = Math.floor((now - gameData.lastUpdate) / 1000);
+    if (gameData.activeCharId !== null) {
+        const char = gameData.characters.find(c => c.id === gameData.activeCharId);
+        if (char) {
+            const income = calculateIncome(char) * diffSeconds;
+            gameData.money += income;
+            alert("不在の間に " + income + "円 稼ぎました！");
+        }
+    }
+    gameData.lastUpdate = now;
+}
+
+function calculateIncome(char) {
+    const base = masterData.chars.find(m => m.type === char.type).baseValue;
+    return Math.floor(base * char.iv / 100);
+}
+
+// キャラ獲得処理
+function getCharacter() {
+    const now = Date.now();
+    if (now - gameData.lastGetTime < 3600000) return;
+
+    // ガチャ処理
+    const typeObj = masterData.chars[Math.floor(Math.random() * masterData.chars.length)];
+    const color = masterData.colors[Math.floor(Math.random() * masterData.colors.length)];
+    let iv = Math.floor(Math.random() * 100) + 1;
+    if (gameData.items.luckBoost > 0) iv = Math.min(100, iv + 10); // アイテム効果例
+
+    const newChar = {
+        id: Date.now(),
+        type: typeObj.type,
+        color: color,
+        iv: iv
+    };
+
+    gameData.characters.push(newChar);
+    gameData.lastGetTime = now;
+    updateZukan(newChar);
+    save();
+    renderStorage();
+    alert(`${color}の${typeObj.type} (個体値:${iv}) を手に入れた！`);
+}
+
+function updateZukan(char) {
+    if (!gameData.zukan[char.type]) {
+        gameData.zukan[char.type] = { colors: {}, maxIV: 0 };
+    }
+    const z = gameData.zukan[char.type];
+    z.colors[char.color] = (z.colors[char.color] || 0) + 1;
+    if (char.iv > z.maxIV) z.maxIV = char.iv;
+}
+
+// 描画系
+function renderStorage() {
+    const grid = document.getElementById('storage-grid');
+    grid.innerHTML = '';
+    
+    let list = [...gameData.characters];
+    const sort = document.getElementById('sort-select').value;
+    if(sort === 'power') list.sort((a,b) => calculateIncome(b) - calculateIncome(a));
+    else list.reverse();
+
+    list.forEach(char => {
+        const isSet = char.id === gameData.activeCharId;
+        const div = document.createElement('div');
+        div.className = `card ${isSet ? 'set-char' : ''}`;
+        div.innerHTML = `
+            <b>${char.type}</b><br>
+            色: ${char.color}<br>
+            IV: ${char.iv}<br>
+            稼ぎ: ${calculateIncome(char)}/s<br>
+            <button onclick="setActive(${char.id})">${isSet ? '解除' : 'セット'}</button>
+            <button onclick="deleteChar(${char.id})">捨てる</button>
+        `;
+        grid.appendChild(div);
+    });
+}
+
+function setActive(id) {
+    gameData.activeCharId = (gameData.activeCharId === id) ? null : id;
+    save();
+    renderStorage();
+}
+
+function deleteChar(id) {
+    if(!confirm("本当に捨てますか？")) return;
+    gameData.characters = gameData.characters.filter(c => c.id !== id);
+    if(gameData.activeCharId === id) gameData.activeCharId = null;
+    save();
+    renderStorage();
+}
+
+function update() {
+    const now = Date.now();
+    // お金増加
+    if (gameData.activeCharId !== null) {
+        const char = gameData.characters.find(c => c.id === gameData.activeCharId);
+        if (char) {
+            const income = calculateIncome(char);
+            gameData.money += income;
+            document.getElementById('income-rate').innerText = income;
+            document.getElementById('active-char-name').innerText = char.type;
+        }
+    } else {
+        document.getElementById('income-rate').innerText = 0;
+        document.getElementById('active-char-name').innerText = "なし";
+    }
+
+    // タイマー
+    const diff = now - gameData.lastGetTime;
+    const btn = document.getElementById('get-btn');
+    if (diff < 3600000) {
+        const remain = 3600000 - diff;
+        const min = Math.floor(remain / 60000);
+        const sec = Math.floor((remain % 60000) / 1000);
+        document.getElementById('timer').innerText = `次まであと ${min}分${sec}秒`;
+        btn.disabled = true;
+    } else {
+        document.getElementById('timer').innerText = `GET可能です！`;
+        btn.disabled = false;
+    }
+
+    document.getElementById('money').innerText = Math.floor(gameData.money);
+    gameData.lastUpdate = now;
+}
+
+function save() {
+    localStorage.setItem('myIdleGame', JSON.stringify(gameData));
+}
+
+function showTab(tab) {
+    document.getElementById('storage-tab').classList.add('hidden');
+    document.getElementById('shop-tab').classList.add('hidden');
+    document.getElementById('zukan-tab').classList.add('hidden');
+    document.getElementById(tab + '-tab').classList.remove('hidden');
+    if(tab === 'zukan') renderZukan();
+}
+
+function renderZukan() {
+    const container = document.getElementById('zukan-list');
+    container.innerHTML = '';
+    for (let type in gameData.zukan) {
+        const data = gameData.zukan[type];
+        const colorsStr = Object.entries(data.colors).map(([c, count]) => `${c}:${count}回`).join(', ');
+        container.innerHTML += `<p><b>${type}</b>: 最大個体値 ${data.maxIV} / 発見色 [${colorsStr}]</p>`;
+    }
+}
+
+function buyItem(type) {
+    if (type === 'luck' && gameData.money >= 1000) {
+        gameData.money -= 1000;
+        gameData.items.luckBoost++;
+        alert("お守りを買いました！(IVが少し上がりやすくなります)");
+    } else if (type === 'color' && gameData.money >= 500) {
+        alert("キャラ詳細から色を変える機能を実装してください");
+    } else {
+        alert("お金が足りません");
+    }
+    save();
+}
+
+init();
+</script>
+</body>
+</html>
