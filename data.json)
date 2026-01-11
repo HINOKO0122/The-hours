@@ -1,0 +1,8 @@
+{
+  "chars": [
+    { "type": "スライム", "baseValue": 10, "rarity": 1 },
+    { "type": "ドラゴン", "baseValue": 50, "rarity": 0.1 },
+    { "type": "勇者", "baseValue": 100, "rarity": 0.05 }
+  ],
+  "colors": ["ノーマル", "レッド", "ブルー", "ゴールド", "シャドウ"]
+}
