@@ -1,0 +1,39 @@
+{
+  "probabilities": {
+    "rare_threshold": 0.1,
+    "super_rare_threshold": 0.01,
+    "color_rarity": {
+      "ゴールド": 0.05,
+      "シルバー": 0.1,
+      "ノーマル": 0.85
+    }
+  },
+  "items": [
+    {
+      "id": "luck_charm",
+      "name": "幸運のお守り",
+      "price": 1000,
+      "description": "個体値が+10されやすくなる",
+      "effectValue": 10
+    },
+    {
+      "id": "color_spray",
+      "name": "カラースプレー",
+      "price": 500,
+      "description": "キャラの色をランダムに塗り替える"
+    },
+    {
+      "id": "exp_booster",
+      "name": "高級なエサ",
+      "price": 2000,
+      "description": "放置収益が1.2倍になる(未実装)"
+    }
+  ],
+  "characters": [
+    { "type": "スライム", "baseValue": 10 },
+    { "type": "ゴブリン", "baseValue": 25 },
+    { "type": "ドラゴン", "baseValue": 100 },
+    { "type": "フェニックス", "baseValue": 250 }
+  ],
+  "colors": ["赤", "青", "緑", "黄", "黒", "白", "ゴールド", "シルバー"]
+}
