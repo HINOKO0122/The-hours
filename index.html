@@ -2,23 +2,37 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <title>The hours</title>
     <style>
-        :root { --main-color: #2c3e50; --accent-color: #2980b9; }
-        body { font-family: sans-serif; background: #f8f9fa; padding: 20px; color: var(--main-color); }
-        .container { max-width: 900px; margin: auto; background: white; padding: 20px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-        .status-bar { display: flex; flex-wrap: wrap; justify-content: space-around; background: #eee; padding: 15px; border-radius: 10px; margin-bottom: 20px; font-weight: bold; gap: 10px; }
-        .main-btn { width: 100%; padding: 15px; font-size: 1.2rem; cursor: pointer; background: var(--accent-color); color: white; border: none; border-radius: 8px; }
-        .main-btn:disabled { background: #ccc; }
-        .tabs { margin: 20px 0; border-bottom: 2px solid #eee; }
-        .tab-btn { padding: 10px 20px; cursor: pointer; border: none; background: none; }
-        .tab-btn.active { border-bottom: 3px solid var(--accent-color); font-weight: bold; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
-        .card { border: 1px solid #ddd; padding: 15px; border-radius: 10px; text-align: center; background: white; }
-        .card.active-set { border: 3px solid #27ae60; background: #f0fff4; }
+        :root { --main-color: #2c3e50; --accent-color: #2980b9; --bg-color: #f8f9fa; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Yu Gothic", sans-serif; background: var(--bg-color); color: var(--main-color); margin: 0; padding: 10px; }
+        .container { max-width: 600px; margin: auto; background: white; padding: 15px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        h1 { text-align: center; font-size: 1.5rem; margin: 10px 0; letter-spacing: 2px; }
+        
+        .status-bar { display: grid; grid-template-columns: 1fr 1fr; background: #eee; padding: 12px; border-radius: 12px; margin-bottom: 15px; font-size: 0.9rem; gap: 5px; }
+        .status-full { grid-column: 1 / 3; border-top: 1px solid #ccc; pt: 5px; margin-top: 5px; text-align: center; }
+
+        .main-btn { width: 100%; padding: 18px; font-size: 1.1rem; cursor: pointer; background: var(--accent-color); color: white; border: none; border-radius: 15px; font-weight: bold; box-shadow: 0 4px 0 #1c5982; transition: 0.1s; }
+        .main-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #1c5982; }
+        .main-btn:disabled { background: #ccc; box-shadow: none; transform: none; }
+
+        .tabs { display: flex; justify-content: space-around; margin: 15px 0; background: #fff; border-radius: 10px; overflow: hidden; border: 1px solid #eee; }
+        .tab-btn { flex: 1; padding: 12px; border: none; background: none; font-size: 0.9rem; color: #7f8c8d; }
+        .tab-btn.active { background: var(--accent-color); color: white; font-weight: bold; }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .card { border: 1px solid #eee; padding: 12px; border-radius: 12px; text-align: center; position: relative; background: #fff; font-size: 0.85rem; }
+        .card.active-set { border: 2px solid #27ae60; background: #f0fff4; }
+        
+        button.action-btn { width: 100%; margin-top: 5px; padding: 6px; border-radius: 8px; border: 1px solid #ddd; background: #fff; font-size: 0.8rem; }
+        
+        #timer { text-align: center; color: #e74c3c; font-weight: bold; font-size: 0.9rem; margin-bottom: 15px; height: 1.2em; }
+        .storage-info { background: #e3f2fd; padding: 8px; border-radius: 10px; margin-bottom: 10px; text-align: center; font-size: 0.85rem; }
         .hidden { display: none; }
-        #timer { text-align: center; color: #e74c3c; font-weight: bold; margin: 10px 0; }
-        .storage-info { background: #e3f2fd; padding: 10px; border-radius: 5px; margin-bottom: 10px; text-align: center; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -28,11 +42,11 @@
     <div class="status-bar">
         <div>金貨: <span id="money">0</span></div>
         <div>収益: <span id="income">0</span>/秒</div>
-        <div>セット中: <span id="active-name">なし</span></div>
+        <div class="status-full">セット中: <span id="active-name">なし</span></div>
     </div>
 
+    <div id="timer">読込中...</div>
     <button id="get-btn" class="main-btn" onclick="getCharacter()">GETする</button>
-    <div id="timer"></div>
 
     <div class="tabs">
         <button id="tab-storage" class="tab-btn active" onclick="switchTab('storage')">倉庫</button>
@@ -41,49 +55,45 @@
     </div>
 
     <div id="storage-sec">
-        <div class="storage-info">
-            倉庫の空き状況: <span id="storage-free">0</span> / 全体 <span id="storage-max">0</span> 枠
-        </div>
+        <div class="storage-info">倉庫の空き: <span id="storage-free">0</span> / <span id="storage-max">0</span> 枠</div>
         <div id="storage-grid" class="grid"></div>
     </div>
 
     <div id="shop-sec" class="hidden">
-        <div id="shop-list" class="grid"></div>
+        <div id="shop-list" style="display:flex; flex-direction:column; gap:10px;"></div>
     </div>
 
     <div id="zukan-sec" class="hidden">
-        <div id="zukan-list"></div>
+        <div id="zukan-list" class="grid"></div>
     </div>
 </div>
 
 <script>
 let config = null;
-let gameData = {
-    money: 0,
-    characters: [],
-    activeCharId: null,
-    lastGetTime: 0,
-    lastUpdate: Date.now(),
-    zukan: {},
-    storageLevel: 0, 
-    luckLevel: 0,
-    sprayCount: 0 
-};
+let gameData = { money: 0, characters: [], activeCharId: null, lastGetTime: 0, lastUpdate: Date.now(), zukan: {}, storageLevel: 0, luckLevel: 0, sprayCount: 0 };
 
 async function init() {
     const res = await fetch('config.json');
     config = await res.json();
-    const saved = localStorage.getItem('TheHours_v3');
+    const saved = localStorage.getItem('TheHours_v4');
     if (saved) gameData = JSON.parse(saved);
-    
     renderAll();
     setInterval(gameLoop, 1000);
 }
 
-// 確率抽選
+// キャラクターの重み付き抽選 (スライム50%等)
+function lotteryType() {
+    const totalWeight = config.characters.reduce((sum, c) => sum + c.weight, 0);
+    let r = Math.random() * totalWeight;
+    for (const c of config.characters) {
+        if (r < c.weight) return c;
+        r -= c.weight;
+    }
+    return config.characters[0];
+}
+
 function lotteryColor() {
-    const r = Math.random();
-    let cumulative = 0;
+    let r = Math.random(), cumulative = 0;
     for (const c of config.colors) {
         cumulative += c.prob;
         if (r < cumulative) return c;
@@ -91,194 +101,130 @@ function lotteryColor() {
     return config.colors[0];
 }
 
-// 収益計算
 function calculateIncome(char) {
     const colorData = config.colors.find(c => c.name === char.color);
     let baseIncome = char.baseValue * (char.individualValue / 100) * colorData.bonus;
-    
-    let compCount = 0;
-    for (let type in gameData.zukan) {
-        if (Object.keys(gameData.zukan[type].colors).length >= 9) compCount++;
-    }
+    let compCount = Object.values(gameData.zukan).filter(z => Object.keys(z.colors).length >= 9).length;
     return baseIncome * (1 + (0.1 * compCount));
 }
 
 function getCharacter() {
     const maxSpace = Math.pow(2, gameData.storageLevel);
-    if (gameData.characters.length >= maxSpace) return alert("倉庫がいっぱいです！");
-    
-    const now = Date.now();
-    if (now - gameData.lastGetTime < 3600000) return;
+    if (gameData.characters.length >= maxSpace) return alert("倉庫が満杯です");
+    if (Date.now() - gameData.lastGetTime < 3600000) return;
 
-    const typeData = config.characters[Math.floor(Math.random() * config.characters.length)];
+    const typeData = lotteryType();
     const colorObj = lotteryColor();
-    
-    // 最小個体値 = 1 + お守りレベル（9個なら10からスタート）
     const minIV = 1 + gameData.luckLevel;
-    let iv = Math.floor(Math.random() * (101 - minIV)) + minIV;
-    if (iv > 100) iv = 100;
+    let iv = Math.min(100, Math.floor(Math.random() * (101 - minIV)) + minIV);
 
-    const newChar = {
-        id: Date.now(),
-        type: typeData.type,
-        color: colorObj.name,
-        individualValue: iv,
-        baseValue: typeData.baseValue
-    };
-
-    gameData.characters.push(newChar);
-    gameData.lastGetTime = now;
-    updateZukan(newChar);
-    save();
-    renderAll();
+    gameData.characters.push({ id: Date.now(), type: typeData.type, color: colorObj.name, individualValue: iv, baseValue: typeData.baseValue });
+    gameData.lastGetTime = Date.now();
+    updateZukan(gameData.characters[gameData.characters.length-1]);
+    save(); renderAll();
+    alert(`【獲得】${colorObj.name}の${typeData.type}\n個体値: ${iv}`);
 }
 
 function updateZukan(char) {
     if (!gameData.zukan[char.type]) gameData.zukan[char.type] = { colors: {}, maxIV: 0 };
     gameData.zukan[char.type].colors[char.color] = true;
-    if (char.individualValue > gameData.zukan[char.type].maxIV) gameData.zukan[char.type].maxIV = char.individualValue;
+    gameData.zukan[char.type].maxIV = Math.max(gameData.zukan[char.type].maxIV, char.individualValue);
 }
 
-// カラースプレー使用
 function useSpray(charId) {
-    if (gameData.sprayCount <= 0) return alert("スプレーを持っていません。");
-    if (!confirm("カラースプレーを使用して、色をランダムに変更しますか？")) return;
-    
+    if (gameData.sprayCount <= 0 || !confirm("カラースプレー(ランダム変更)を使用しますか？")) return;
     const char = gameData.characters.find(c => c.id === charId);
-    if (!char) return;
-    
     gameData.sprayCount--;
     const newColor = lotteryColor();
     char.color = newColor.name;
     updateZukan(char);
-    save();
-    renderAll();
-    alert(`色が ${newColor.name} に変わりました！`);
+    save(); renderAll();
 }
 
 function renderShop() {
     const list = document.getElementById('shop-list');
-    list.innerHTML = '';
-    
-    const storagePrice = Math.pow(2, gameData.storageLevel) * 100;
-    const luckPrice = Math.pow(2, gameData.luckLevel);
-
-    list.innerHTML += `
-        <div class="card">
-            <b>倉庫拡張</b><br>容量を2倍に増やす<br>価格: ${storagePrice}円<br>
-            <button onclick="buyItem('storage', ${storagePrice})">購入</button>
+    const sPrice = Math.pow(2, gameData.storageLevel) * 100;
+    const lPrice = Math.pow(2, gameData.luckLevel);
+    list.innerHTML = `
+        <div class="card" style="display:flex; justify-content:space-between; align-items:center; text-align:left;">
+            <div><b>倉庫拡張</b><br><small>${sPrice}円 / 容量2倍</small></div>
+            <button onclick="buyItem('storage', ${sPrice})">購入</button>
         </div>
-        <div class="card">
-            <b>幸運のお守り</b><br>最小個体値が +1 される<br>価格: ${luckPrice}円<br>
-            <button onclick="buyItem('luck', ${luckPrice})">購入</button>
+        <div class="card" style="display:flex; justify-content:space-between; align-items:center; text-align:left;">
+            <div><b>幸運のお守り</b><br><small>${lPrice}円 / 最小個体値+1</small></div>
+            <button onclick="buyItem('luck', ${lPrice})">購入</button>
         </div>
-        <div class="card">
-            <b>カラースプレー</b><br>ランダムに色を変える<br>価格: 500円<br>
-            所持: ${gameData.sprayCount}個<br>
-            <button onclick="buyItem('spray', 500)">購入</button>
-        </div>
-    `;
+        <div class="card" style="display:flex; justify-content:space-between; align-items:center; text-align:left;">
+            <div><b>カラースプレー</b><br><small>500円 / 色をランダム変身</small></div>
+            <button onclick="buyItem('spray', 500)">購入 (${gameData.sprayCount})</button>
+        </div>`;
 }
 
 function buyItem(type, price) {
-    if (gameData.money < price) return alert("お金が足りません");
+    if (gameData.money < price) return alert("資金不足");
     gameData.money -= price;
     if (type === 'storage') gameData.storageLevel++;
     if (type === 'luck') gameData.luckLevel++;
     if (type === 'spray') gameData.sprayCount++;
-    save();
-    renderAll();
+    save(); renderAll();
 }
 
 function renderStorage() {
     const grid = document.getElementById('storage-grid');
-    grid.innerHTML = '';
-    
     const maxSpace = Math.pow(2, gameData.storageLevel);
     document.getElementById('storage-free').innerText = maxSpace - gameData.characters.length;
     document.getElementById('storage-max').innerText = maxSpace;
-
-    gameData.characters.forEach(char => {
+    grid.innerHTML = gameData.characters.map(char => {
         const isSet = char.id === gameData.activeCharId;
-        const inc = calculateIncome(char);
-        grid.innerHTML += `
-            <div class="card ${isSet ? 'active-set' : ''}">
-                <b>${char.type} (${char.color})</b><br>
-                個体値: ${char.individualValue} / 収益: ${inc.toFixed(1)}/秒<br>
-                <button onclick="setActive(${char.id})">${isSet ? '解除' : 'セット'}</button>
-                <button onclick="deleteChar(${char.id})">捨てる</button><br>
-                <button onclick="useSpray(${char.id})" style="margin-top:5px; font-size:0.8em;">スプレーを使う</button>
-            </div>
-        `;
-    });
+        return `<div class="card ${isSet ? 'active-set' : ''}">
+            <b>${char.type}</b><br><small>${char.color}</small><br>
+            個体値: ${char.individualValue}<br>
+            <button class="action-btn" onclick="setActive(${char.id})">${isSet ? '解除' : 'セット'}</button>
+            <button class="action-btn" onclick="useSpray(${char.id})">スプレー</button>
+            <button class="action-btn" onclick="deleteChar(${char.id})" style="color:red">捨てる</button>
+        </div>`;
+    }).join('');
 }
 
 function renderZukan() {
-    const list = document.getElementById('zukan-list');
-    list.innerHTML = '';
-    for (let type in gameData.zukan) {
-        const d = gameData.zukan[type];
-        const count = Object.keys(d.colors).length;
-        list.innerHTML += `<div class="card">${type}<br>最高個体値: ${d.maxIV}<br>発見色: ${count}/9 ${count===9?'★COMP!':''}</div>`;
-    }
+    document.getElementById('zukan-list').innerHTML = Object.entries(gameData.zukan).map(([type, d]) => `
+        <div class="card"><b>${type}</b><br>最高個体値: ${d.maxIV}<br>色: ${Object.keys(d.colors).length}/9</div>
+    `).join('');
 }
 
 function gameLoop() {
-    const now = Date.now();
-    let currentIncome = 0;
-    let activeName = "なし";
+    let income = 0, name = "なし";
     if (gameData.activeCharId) {
         const char = gameData.characters.find(c => c.id === gameData.activeCharId);
-        if (char) {
-            currentIncome = calculateIncome(char);
-            activeName = `${char.type} (${char.color})`;
-            gameData.money += currentIncome;
-        }
+        if (char) { income = calculateIncome(char); name = `${char.color}${char.type}`; gameData.money += income; }
     }
-    
     document.getElementById('money').innerText = Math.floor(gameData.money);
-    document.getElementById('income').innerText = currentIncome.toFixed(1);
-    document.getElementById('active-name').innerText = activeName;
+    document.getElementById('income').innerText = income.toFixed(1);
+    document.getElementById('active-name').innerText = name;
     
-    const diff = now - gameData.lastGetTime;
+    const rem = 3600000 - (Date.now() - gameData.lastGetTime);
     const btn = document.getElementById('get-btn');
-    if (diff < 3600000) {
-        const rem = 3600000 - diff;
-        const m = Math.floor(rem/60000);
-        const s = Math.floor((rem%60000)/1000);
-        document.getElementById('timer').innerText = `次の獲得まであと ${m}分${s}秒`;
+    if (rem > 0) {
+        document.getElementById('timer').innerText = `次まで ${Math.floor(rem/60000)}分${Math.floor((rem%60000)/1000)}秒`;
         btn.disabled = true;
     } else {
         document.getElementById('timer').innerText = "獲得可能です！";
         btn.disabled = false;
     }
-    gameData.lastUpdate = now;
-    save();
+    gameData.lastUpdate = Date.now(); save();
 }
 
-function setActive(id) { 
-    gameData.activeCharId = (gameData.activeCharId === id) ? null : id; 
-    renderAll(); 
-}
-function deleteChar(id) { 
-    if(confirm("このキャラクターを捨てますか？")){ 
-        gameData.characters = gameData.characters.filter(c => c.id !== id); 
-        if(gameData.activeCharId === id) gameData.activeCharId = null; 
-        renderAll(); 
-    } 
-}
-function switchTab(t) { 
-    document.getElementById('storage-sec').classList.add('hidden');
-    document.getElementById('shop-sec').classList.add('hidden');
-    document.getElementById('zukan-sec').classList.add('hidden');
-    document.getElementById(t + '-sec').classList.remove('hidden');
-    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.getElementById('tab-' + t).classList.add('active');
+function setActive(id) { gameData.activeCharId = (gameData.activeCharId === id) ? null : id; renderAll(); }
+function deleteChar(id) { if(confirm("捨てますか？")) { gameData.characters = gameData.characters.filter(c => c.id !== id); if(gameData.activeCharId === id) gameData.activeCharId = null; renderAll(); } }
+function switchTab(t) {
+    ['storage','shop','zukan'].forEach(s => document.getElementById(s+'-sec').classList.add('hidden'));
+    document.getElementById(t+'-sec').classList.remove('hidden');
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-'+t).classList.add('active');
     renderAll();
 }
 function renderAll() { renderStorage(); renderShop(); renderZukan(); }
-function save() { localStorage.setItem('TheHours_v3', JSON.stringify(gameData)); }
-
+function save() { localStorage.setItem('TheHours_v4', JSON.stringify(gameData)); }
 init();
 </script>
 </body>
