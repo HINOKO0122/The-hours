@@ -1,23 +1,18 @@
 {
-  "items": [
-    {
-      "id": "luck_charm",
-      "name": "幸運のお守り",
-      "price": 1000,
-      "description": "持っていると新しく手に入るキャラの個体値が10上がります。"
-    },
-    {
-      "id": "color_spray",
-      "name": "カラースプレー",
-      "price": 500,
-      "description": "キャラの色を変えることができます（未実装）。"
-    }
-  ],
   "characters": [
-    { "type": "ネコ", "baseValue": 10 },
-    { "type": "イヌ", "baseValue": 15 },
-    { "type": "トリ", "baseValue": 20 },
-    { "type": "龍", "baseValue": 100 }
+    { "type": "スライム", "baseValue": 10 },
+    { "type": "ドラゴン", "baseValue": 50 },
+    { "type": "フェニックス", "baseValue": 100 }
   ],
-  "colors": ["赤", "青", "緑", "黄", "黒", "白", "ゴールド", "シルバー"]
+  "colors": [
+    { "name": "赤", "prob": 0.13, "bonus": 1 },
+    { "name": "橙", "prob": 0.13, "bonus": 1 },
+    { "name": "黄", "prob": 0.13, "bonus": 1 },
+    { "name": "緑", "prob": 0.13, "bonus": 1 },
+    { "name": "青", "prob": 0.13, "bonus": 1 },
+    { "name": "藍", "prob": 0.13, "bonus": 1 },
+    { "name": "紫", "prob": 0.13, "bonus": 1 },
+    { "name": "銀", "prob": 0.08, "bonus": 2 },
+    { "name": "金", "prob": 0.01, "bonus": 3 }
+  ]
 }
