@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <link rel="manifest" href="manifest.json?v=9">
+    <link rel="manifest" href="manifest.json?v=10">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>The hours</title>
@@ -89,11 +89,9 @@ async function init() {
         
         const saved = localStorage.getItem(SAVE_KEY);
         if (saved) {
-            const parsed = JSON.parse(saved);
-            gameData = {...gameData, ...parsed};
+            gameData = {...gameData, ...JSON.parse(saved)};
         }
         
-        // Config読み込み後に「次の運命」を生成
         if (!gameData.nextFate) generateNextFate();
         
         calcOffline();
@@ -132,14 +130,10 @@ function getCharacter() {
     if (Date.now() - (gameData.lastGetTime || 0) < wait) return;
 
     for(let i=0; i<getCount; i++) {
-        const newChar = { 
-            id: Date.now() + i, 
-            ...gameData.nextFate, 
-            locked: false 
-        };
+        const newChar = { id: Date.now() + i, ...gameData.nextFate, locked: false };
         gameData.characters.push(newChar);
         updateZukan(newChar);
-        generateNextFate(); // 次をセット
+        generateNextFate();
     }
     
     gameData.lastGetTime = Date.now();
@@ -159,10 +153,25 @@ function renderStorage() {
         return `<div class="card ${isSet?'active-set':''}">
             <button class="lock-btn" onclick="toggleLock(${c.id})">${c.locked ? "🔒" : "🔓"}</button>
             <span style="font-size:1.5rem;">${getColorEmoji(c.color)}</span><br>
-            <b>${c.type}</b><br>IV: ${c.iv}<br>収益: ${getBaseIncome(c).toFixed(1)}<br>
+            <b>${c.type}</b><br>個体値: ${c.iv}<br>収益: ${getBaseIncome(c).toFixed(1)}<br>
             <button class="action-btn" onclick="setActive(${c.id})">${isSet?'解除':'セット'}</button>
             <button class="action-btn" onclick="useSpray(${c.id})" ${gameData.sprayCount > 0 ? '' : 'style="color:#ccc;"'}>スプレー (${gameData.sprayCount||0})</button>
             ${!c.locked ? `<button class="action-btn" onclick="delChar(${c.id})" style="color:var(--danger); border-color:var(--danger);">捨てる</button>` : ''}
+        </div>`;
+    }).join('');
+}
+
+function renderZukan() {
+    const zList = document.getElementById('zukan-list');
+    const discovered = Object.keys(gameData.zukan || {});
+    zList.innerHTML = discovered.map(type => {
+        const d = gameData.zukan[type];
+        const colorCount = Object.keys(d.colors || {}).length;
+        const maxIV = d.maxIV || 0;
+        return `<div class="card">
+            <b>${type}</b><br>色: ${colorCount}/9<br>最大個体値: ${maxIV}
+            ${colorCount>=9 ? "<br><span style='color:orange;'>色コンプ★</span>":""}
+            ${maxIV>=100 ? "<br><span style='color:gold;'>MAX個体値発見★</span>":""}
         </div>`;
     }).join('');
 }
@@ -178,21 +187,6 @@ function useSpray(id) {
         updateZukan(char);
         save(); renderAll();
     }
-}
-
-function renderZukan() {
-    const zList = document.getElementById('zukan-list');
-    const discovered = Object.keys(gameData.zukan || {});
-    zList.innerHTML = discovered.map(type => {
-        const d = gameData.zukan[type];
-        const colorCount = Object.keys(d.colors || {}).length;
-        const maxIV = d.maxIV || 0;
-        return `<div class="card">
-            <b>${type}</b><br>色: ${colorCount}/9<br>最大IV: ${maxIV}
-            ${colorCount>=9 ? "<br><span style='color:orange;'>色コンプ★</span>":""}
-            ${maxIV>=100 ? "<br><span style='color:gold;'>MAX個体値発見★</span>":""}
-        </div>`;
-    }).join('');
 }
 
 function getBaseIncome(char) {
