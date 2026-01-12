@@ -275,7 +275,6 @@ for(let i=0; i<getCount; i++) {
 function renderStorage() {
     const grid = document.getElementById('storage-grid');
     const sort = document.getElementById('sort-select').value;
-    // 倉庫の空き状況（整数）
     document.getElementById('storage-usage').innerText = `${gameData.characters.length}/${3 + (gameData.storageLevel || 0)}`;
     let list = [...gameData.characters];
     if (sort === 'income') list.sort((a,b) => getBaseIncome(b) - getBaseIncome(a));
@@ -287,9 +286,9 @@ function renderStorage() {
             <button class="lock-btn" onclick="toggleLock(${c.id})">${c.locked ? "🔒" : "🔓"}</button>
             <span style="font-size:1.5rem;">${getColorEmoji(c.color)}</span><br>
             <b>${c.type}</b><br>
-固有値: ${c.baseValue + (gameData.discardCount[c.type] || 0)}<br>
-個体値: ${c.iv}<br>
-            収益: ${Math.round(getBaseIncome(c)).toLocaleString()}<br> <button class="action-btn" onclick="setActive(${c.id})">${isSet?'解除':'セット'}</button>
+            個体値: ${c.iv}<br>
+            収益: ${Math.round(getBaseIncome(c)).toLocaleString()}<br>
+            <button class="action-btn" onclick="setActive(${c.id})">${isSet?'解除':'セット'}</button>
             <button class="action-btn" onclick="useSpray(${c.id})" ${gameData.sprayCount > 0 ? '' : 'style="color:#ccc;"'}>スプレー (${gameData.sprayCount||0})</button>
             ${!c.locked ? `<button class="action-btn" onclick="delChar(${c.id})" style="color:var(--danger); border-color:var(--danger);">捨てる</button>` : ''}
         </div>`;
@@ -503,6 +502,9 @@ function renderZukan() {
         const colorCount = Object.keys(d.colors || {}).length;
         const isComp = colorCount >= 9; // 全9色
         const isMaxIV = (d.maxIV || 0) >= 100; // 個体値100
+        
+        // ★追加：その種族を何体捨てて、どれだけ強化されているか
+        const level = gameData.discardCount[type] || 0;
 
         // クラスを決定
         let cardClass = "card";
@@ -511,7 +513,7 @@ function renderZukan() {
 
         return `<div class="${cardClass}">
             <b>${type}</b><br>
-            色:${colorCount}/9<br>
+            <small style="color:var(--accent);">強化Lv: ${level}</small><br> 色:${colorCount}/9<br>
             最大個体値:${d.maxIV}
         </div>`;
     }).join('');
