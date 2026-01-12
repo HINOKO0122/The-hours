@@ -198,9 +198,27 @@ function renderStorage() {
             個体値: ${c.iv}<br>
             収益: ${getBaseIncome(c).toFixed(1)}<br>
             <button class="action-btn" onclick="setActive(${c.id})">${isSet?'解除':'セット'}</button>
+            <button class="action-btn" onclick="useSpray(${c.id})" ${gameData.sprayCount > 0 ? '' : 'style="color:#ccc; border-color:#eee;"'}>スプレー (${gameData.sprayCount || 0})</button>
             ${!c.locked ? `<button class="action-btn" onclick="delChar(${c.id})" style="color:var(--danger); border-color:var(--danger);">捨てる</button>` : ''}
         </div>`;
     }).join('');
+}
+
+// スプレー使用関数も念のため再確認
+function useSpray(id) {
+    if ((gameData.sprayCount || 0) <= 0) return alert("カラースプレーを持っていません");
+    if (!confirm("カラースプレーを使用して色をランダムに変更しますか？")) return;
+    
+    const char = gameData.characters.find(c => c.id === id);
+    if (char) {
+        gameData.sprayCount--;
+        const c = config.colors[Math.floor(Math.random() * config.colors.length)];
+        char.color = c.name;
+        updateZukan(char); // 新しい色を図鑑に登録
+        save();
+        renderAll();
+        alert(`色が「${c.name}」に変わりました！`);
+    }
 }
 
 function getColorEmoji(colorName) {
