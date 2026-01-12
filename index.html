@@ -23,12 +23,8 @@
         #timer { text-align: center; font-weight: bold; font-size: 0.9rem; color: var(--danger); margin-bottom: 10px; }
         .action-btn { width: 100%; margin-top: 5px; padding: 8px; border-radius: 5px; border: 1px solid #ccc; background: #fff; font-size: 0.75rem; font-weight: bold; cursor: pointer; }
         .lock-btn { position: absolute; top: 5px; right: 5px; background: none; border: none; font-size: 1.2rem; cursor: pointer; }
-        
-        /* 説明欄のスタイル */
         .guide-section { margin-top: 30px; padding: 15px; background: #f9f9f9; border-radius: 15px; border: 1px solid #ddd; font-size: 0.8rem; }
         .guide-section h3 { font-size: 0.9rem; margin: 15px 0 5px 0; color: var(--accent); border-bottom: 1px solid #eee; }
-        .guide-section p { margin: 5px 0; }
-        .guide-section ul { padding-left: 20px; margin: 5px 0; }
         textarea { width: 100%; height: 60px; font-size: 0.7rem; margin: 5px 0; }
     </style>
 </head>
@@ -82,36 +78,23 @@
 
     <div class="guide-section">
         <h3>・遊び方</h3>
-        <p>1時間に1回ボタンを押すとランダムでモンスターをゲットできるよ！<br>ゲットしたキャラをセットしてお金を稼いでもらおう！<br>一日の最初のゲットは追加で一体プレゼント！</p>
-        
+        <p>1時間に1回ボタンを押すとランダムでモンスターをゲットできるよ！<br>一日の最初のゲットは追加で一体プレゼント！</p>
         <h3>・種族・色・個体値について</h3>
-        <p>ゲットしたときに「種族・色・個体値」がランダムで決まるよ！</p>
-        <ul>
-            <li><b>種族：</b>強い種族ほどたくさん稼ぐよ！</li>
-            <li><b>色：</b>金や銀だとたくさん稼ぐよ！ショップのスプレーで変えられる！</li>
-            <li><b>個体値：</b>モンスターの才能を表してるよ！1から100まであって、数が多いほど強い！</li>
-        </ul>
-        <p>変えられるのは色だけ！種族と個体値が良いキャラをゲットしよう！</p>
-
-        <h3>・データバックアップについて</h3>
-        <p>1.「コードを生成」を押す（現在のデータが文字列になります）<br>2.「コードをコピー」を押してコピーする<br>3.メモ帳などに貼り付けて保管しておく</p>
-        <p><small>※生成する度にコードが変わるので、定期的な保存を推奨します！</small></p>
-
-        <h3>・データ復元について</h3>
-        <p>1.保存しておいたコードを貼り付ける<br>2.「データを復旧」を押す</p>
-
+        <p>種族：重み(weight)で確率が決まるよ！覚醒系は激レア！<br>色：金や銀は確率(prob)が低いけど収益が高いよ！<br>個体値：才能(1〜100)だよ。変えられないから大事にしよう！</p>
+        <h3>・バックアップ</h3>
+        <p>「生成」→「コピー」してメモ帳へ！定期的に保存してね。</p>
         <h3>・強くなるには...?</h3>
-        <p>収益に影響するもの：<br>「種族」「色」「個体値」「図鑑の色コンプ率」「発見した最大個体値」「ログイン日数」だよ！</p>
+        <p>「種族」「色」「個体値」「図鑑の色コンプ」「最大個体値発見」「ログイン日数」が収益に関係するよ！</p>
     </div>
 </div>
 
 <script>
-const SAVE_KEY = 'TheHours_v12';
+const SAVE_KEY = 'TheHours_v13';
 let config = null;
 let gameData = {
     money: 0, characters: [], activeCharId: null, lastGetTime: 0, lastUpdate: Date.now(),
     zukan: {}, storageLevel: 0, sprayCount: 0, clockCount: 0, logDays: 0, lastLogDate: "", lastGetDate: "",
-    nextFateList: [] // 運命を配列で管理（2枠以上）
+    nextFateList: []
 };
 
 async function init() {
@@ -119,15 +102,10 @@ async function init() {
         const res = await fetch('config.json');
         config = await res.json();
         const saved = localStorage.getItem(SAVE_KEY);
-        if (saved) {
-            gameData = {...gameData, ...JSON.parse(saved)};
-        }
-
-        // --- 不正データ（undefined）の自動削除処理 ---
-        cleanBadData();
-
-        // 運命リストを最新の状態にする
-        fillFate();
+        if (saved) gameData = {...gameData, ...JSON.parse(saved)};
+        
+        cleanBadData(); // 不正なundefinedデータを掃除
+        fillFate(); // 予約リストを補充
         
         calcOffline();
         checkLogin();
@@ -137,43 +115,40 @@ async function init() {
     } catch(e) { document.getElementById('timer').innerText = "Load Error"; }
 }
 
-function cleanBadData() {
-    // 1. 倉庫内の undefined を削除
-    gameData.characters = gameData.characters.filter(c => c && c.type && c.type !== "undefined");
+// 確率(weight/prob)に基づいた1体分の抽選
+function generateSingleFate() {
+    if (!config) return null;
 
-    // 2. 図鑑内の undefined を削除
-    if (gameData.zukan && gameData.zukan["undefined"]) {
-        delete gameData.zukan["undefined"];
+    // 種族の重み付き抽選
+    const totalW = config.characters.reduce((s, c) => s + (c.weight || 0), 0);
+    let rW = Math.random() * totalW;
+    let selC = config.characters[0];
+    for (const c of config.characters) {
+        if (rW < c.weight) { selC = c; break; }
+        rW -= c.weight;
     }
 
-    // 3. 予約リスト内の不正データを掃除
-    if (gameData.nextFateList) {
-        gameData.nextFateList = gameData.nextFateList.filter(f => f && f.type);
-    } else {
-        gameData.nextFateList = [];
+    // 色の重み付き抽選
+    const totalP = config.colors.reduce((s, c) => s + (c.prob || 0), 0);
+    let rP = Math.random() * totalP;
+    let selCol = config.colors[0];
+    for (const c of config.colors) {
+        if (rP < c.prob) { selCol = c; break; }
+        rP -= c.prob;
     }
-    save();
+
+    return {
+        type: selC.type, color: selCol.name,
+        iv: Math.floor(Math.random() * 100) + 1, baseValue: selC.baseValue
+    };
 }
 
 function fillFate() {
     if (!config) return;
-    // 常に2つ先まで運命を予約
     while (gameData.nextFateList.length < 2) {
         gameData.nextFateList.push(generateSingleFate());
     }
     save();
-}
-
-// 抽選処理を共通化
-function generateSingleFate() {
-    const t = config.characters[Math.floor(Math.random() * config.characters.length)];
-    const c = config.colors[Math.floor(Math.random() * config.colors.length)];
-    return {
-        type: t.type, 
-        color: c.name,
-        iv: Math.floor(Math.random() * 100) + 1, 
-        baseValue: t.baseValue
-    };
 }
 
 function getCharacter() {
@@ -187,30 +162,45 @@ function getCharacter() {
     if (Date.now() - (gameData.lastGetTime || 0) < wait) return;
 
     for(let i=0; i<getCount; i++) {
-        // --- 修正箇所：リストが空ならその場で生成（undefined対策） ---
         let fate = gameData.nextFateList.shift();
-        if (!fate) {
-            fate = generateSingleFate();
-        }
-        
+        if (!fate) fate = generateSingleFate(); // 万が一空ならその場で
         const newChar = { id: Date.now() + i, ...fate, locked: false };
         gameData.characters.push(newChar);
         updateZukan(newChar);
     }
     
-    fillFate(); 
+    fillFate();
     gameData.lastGetTime = Date.now();
     gameData.lastGetDate = today;
     autoSetBestCharacter();
     save(); renderAll();
-    alert(getCount === 2 ? "今日の初GETボーナスで2体手に入れた！" : "モンスターをゲットした！");
+    alert(getCount === 2 ? "ボーナス含め2体GET！" : "モンスターをGETした！");
+}
+
+function useSpray(id) {
+    if ((gameData.sprayCount || 0) <= 0) return alert("スプレー不足");
+    if (!confirm("色を変えますか？(金・銀は出にくいよ)")) return;
+    const char = gameData.characters.find(c => c.id === id);
+    if (char) {
+        gameData.sprayCount--;
+        // 色の重み付き抽選をここでも実行
+        const totalP = config.colors.reduce((s, c) => s + (c.prob || 0), 0);
+        let rP = Math.random() * totalP;
+        let selCol = config.colors[0];
+        for (const c of config.colors) {
+            if (rP < c.prob) { selCol = c; break; }
+            rP -= c.prob;
+        }
+        char.color = selCol.name;
+        updateZukan(char);
+        save(); renderAll();
+    }
 }
 
 function renderStorage() {
     const grid = document.getElementById('storage-grid');
     const sort = document.getElementById('sort-select').value;
     document.getElementById('storage-usage').innerText = `${gameData.characters.length}/${3 + (gameData.storageLevel || 0)}`;
-    
     let list = [...gameData.characters];
     if (sort === 'income') list.sort((a,b) => getBaseIncome(b) - getBaseIncome(a));
     else list.reverse();
@@ -222,8 +212,8 @@ function renderStorage() {
             <span style="font-size:1.5rem;">${getColorEmoji(c.color)}</span><br>
             <b>${c.type}</b><br>個体値: ${c.iv}<br>収益: ${getBaseIncome(c).toFixed(1)}<br>
             <button class="action-btn" onclick="setActive(${c.id})">${isSet?'解除':'セット'}</button>
-            <button class="action-btn" onclick="useSpray(${c.id})" ${gameData.sprayCount > 0 ? '' : 'style="color:#ccc;"'}>スプレー (${gameData.sprayCount||0})</button>
-            ${!c.locked ? `<button class="action-btn" onclick="delChar(${c.id})" style="color:var(--danger); border-color:var(--danger);">捨てる</button>` : ''}
+            <button class="action-btn" onclick="useSpray(${c.id})" ${gameData.sprayCount > 0 ? '' : 'style="color:#ccc;"'}>スプレー</button>
+            ${!c.locked ? `<button class="action-btn" onclick="delChar(${c.id})" style="color:var(--danger);">捨てる</button>` : ''}
         </div>`;
     }).join('');
 }
@@ -232,46 +222,10 @@ function renderShop() {
     const list = document.getElementById('shop-list');
     const sPrice = 1000 * Math.pow(2, gameData.storageLevel || 0);
     list.innerHTML = `
-        <div class="card" style="text-align:left;">
-            <b>倉庫拡張 (+1)</b><br><small>${sPrice.toLocaleString()}円 / 現在の最大: ${3+gameData.storageLevel}</small>
-            <button class="action-btn" onclick="buy('s',${sPrice})">購入</button>
-        </div>
-        <div class="card" style="text-align:left;">
-            <b>カラースプレー</b><br><small>使用したキャラの色がランダムで変わる<br>10,000円 / 所持: ${gameData.sprayCount||0}</small>
-            <button class="action-btn" onclick="buy('p',10000)">購入</button>
-        </div>
-        <div class="card" style="text-align:left;">
-            <b>真実の時計</b><br><small>クールタイムが所持数に応じて少し短くなる<br>1億円 / 所持: ${gameData.clockCount||0}</small>
-            <button class="action-btn" onclick="buy('c',100000000)">購入</button>
-        </div>
+        <div class="card" style="text-align:left;"><b>倉庫拡張</b><br><small>${sPrice.toLocaleString()}円</small><button class="action-btn" onclick="buy('s',${sPrice})">購入</button></div>
+        <div class="card" style="text-align:left;"><b>カラースプレー</b><br><small>10,000円 / 所持:${gameData.sprayCount||0}</small><button class="action-btn" onclick="buy('p',10000)">購入</button></div>
+        <div class="card" style="text-align:left;"><b>真実の時計</b><br><small>1億円 / 所持:${gameData.clockCount||0}</small><button class="action-btn" onclick="buy('c',100000000)">購入</button></div>
     `;
-}
-
-function useSpray(id) {
-    if ((gameData.sprayCount || 0) <= 0) return alert("スプレーがありません");
-    if (!confirm("色を変えますか？")) return;
-    const char = gameData.characters.find(c => c.id === id);
-    if (char) {
-        gameData.sprayCount--;
-        const c = config.colors[Math.floor(Math.random() * config.colors.length)];
-        char.color = c.name;
-        updateZukan(char);
-        save(); renderAll();
-    }
-}
-
-function renderZukan() {
-    const zList = document.getElementById('zukan-list');
-    zList.innerHTML = Object.keys(gameData.zukan || {}).map(type => {
-        const d = gameData.zukan[type];
-        const colorCount = Object.keys(d.colors || {}).length;
-        const maxIV = d.maxIV || 0;
-        return `<div class="card">
-            <b>${type}</b><br>色: ${colorCount}/9<br>最大個体値: ${maxIV}
-            ${colorCount>=9 ? "<br><span style='color:orange;'>色コンプ★</span>":""}
-            ${maxIV>=100 ? "<br><span style='color:gold;'>MAX個体値発見★</span>":""}
-        </div>`;
-    }).join('');
 }
 
 function getBaseIncome(char) {
@@ -293,7 +247,7 @@ function getColorEmoji(colorName) {
 }
 
 function buy(type, price) {
-    if (gameData.money < price) return alert("お金が足りません");
+    if (gameData.money < price) return alert("お金不足");
     gameData.money -= price;
     if(type==='s') gameData.storageLevel++;
     if(type==='p') gameData.sprayCount++;
@@ -311,7 +265,6 @@ function gameLoop() {
     document.getElementById('income').innerText = inc.toFixed(1);
     document.getElementById('active-name').innerText = name;
     document.getElementById('log-days').innerText = gameData.logDays || 0;
-    
     const wait = 3600000 * Math.pow(0.99, gameData.clockCount || 0);
     const rem = wait - (Date.now() - (gameData.lastGetTime || 0));
     const btn = document.getElementById('get-btn');
@@ -326,7 +279,7 @@ function gameLoop() {
 function save() { localStorage.setItem(SAVE_KEY, JSON.stringify(gameData)); }
 function toggleLock(id) { const char = gameData.characters.find(c => c.id === id); if (char) { char.locked = !char.locked; save(); renderStorage(); } }
 function setActive(id) { gameData.activeCharId = (gameData.activeCharId===id)? null:id; if(!gameData.activeCharId) autoSetBestCharacter(); renderAll(); }
-function delChar(id) { if(confirm("捨てますか？")){ gameData.characters=gameData.characters.filter(c=>c.id!==id); if(gameData.activeCharId===id) gameData.activeCharId = null; autoSetBestCharacter(); renderAll(); } }
+function delChar(id) { if(confirm("捨てる？")){ gameData.characters=gameData.characters.filter(c=>c.id!==id); if(gameData.activeCharId===id) gameData.activeCharId = null; autoSetBestCharacter(); renderAll(); } }
 function switchTab(t) {
     ['storage','shop','zukan'].forEach(s => document.getElementById(s+'-sec').classList.add('hidden'));
     document.getElementById(t+'-sec').classList.remove('hidden');
@@ -342,6 +295,11 @@ function calcOffline() {
         if (char) gameData.money += getFullIncome(char) * diff;
     }
 }
+function cleanBadData() {
+    gameData.characters = gameData.characters.filter(c => c && c.type && c.type !== "undefined");
+    if (gameData.zukan["undefined"]) delete gameData.zukan["undefined"];
+    gameData.nextFateList = (gameData.nextFateList || []).filter(f => f && f.type);
+}
 function checkLogin() { const t = new Date().toLocaleDateString(); if (gameData.lastLogDate !== t) { gameData.logDays++; gameData.lastLogDate = t; save(); } }
 function autoSetBestCharacter() {
     if (!gameData.activeCharId && gameData.characters.length > 0) {
@@ -355,9 +313,17 @@ function updateZukan(char) {
     gameData.zukan[char.type].colors[char.color] = true;
     gameData.zukan[char.type].maxIV = Math.max(gameData.zukan[char.type].maxIV || 0, char.iv);
 }
+function renderZukan() {
+    const zList = document.getElementById('zukan-list');
+    zList.innerHTML = Object.keys(gameData.zukan || {}).map(type => {
+        const d = gameData.zukan[type];
+        const colorCount = Object.keys(d.colors || {}).length;
+        return `<div class="card"><b>${type}</b><br>色:${colorCount}/9<br>最大個体値:${d.maxIV}</div>`;
+    }).join('');
+}
 function generateBackupCode() { document.getElementById('backup-text').value = btoa(unescape(encodeURIComponent(JSON.stringify(gameData)))); }
-function copyBackup() { const a = document.getElementById('backup-text'); a.select(); document.execCommand('copy'); alert("コピーしました！"); }
-function restoreData() { const c = document.getElementById('restore-text').value; try { gameData = JSON.parse(decodeURIComponent(escape(atob(c)))); save(); location.reload(); } catch(e) { alert("コードが正しくありません"); } }
+function copyBackup() { const a = document.getElementById('backup-text'); a.select(); document.execCommand('copy'); alert("コピー済"); }
+function restoreData() { const c = document.getElementById('restore-text').value; try { gameData = JSON.parse(decodeURIComponent(escape(atob(c)))); save(); location.reload(); } catch(e) { alert("コード不正"); } }
 function renderAll() { renderStorage(); renderShop(); renderZukan(); }
 init();
 </script>
