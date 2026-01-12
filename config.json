@@ -1,9 +1,13 @@
 {
   "characters": [
-    { "type": "スライム", "baseValue": 10, "weight": 50 },
-    { "type": "ゴブリン", "baseValue": 25, "weight": 30 },
-    { "type": "ドラゴン", "baseValue": 100, "weight": 15 },
-    { "type": "フェニックス", "baseValue": 500, "weight": 5 }
+    { "type": "スライム", "weight": 49.5, "baseValue": 100 },
+    { "type": "ゴブリン", "weight": 29.7, "baseValue": 200 },
+    { "type": "ドラゴン", "weight": 14.85, "baseValue": 400 },
+    { "type": "フェニックス", "weight": 4.95, "baseValue": 800 },
+    { "type": "覚醒スライム", "weight": 0.5, "baseValue": 1000 },
+    { "type": "覚醒ゴブリン", "weight": 0.3, "baseValue": 2000 },
+    { "type": "覚醒ドラゴン", "weight": 0.15, "baseValue": 4000 },
+    { "type": "覚醒フェニックス", "weight": 0.05, "baseValue": 8000 }
   ],
   "colors": [
     { "name": "赤", "prob": 0.13, "bonus": 1 },
