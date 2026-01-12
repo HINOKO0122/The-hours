@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <link rel="manifest" href="manifest.json?v=5">
+    <link rel="manifest" href="manifest.json?v=6">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>The hours</title>
@@ -24,10 +24,10 @@
         .card.active-set { border: 2px solid #27ae60; background: #f0fff4; }
         .hidden { display: none; }
         #timer { text-align: center; font-weight: bold; font-size: 0.9rem; color: #e74c3c; margin-bottom: 10px; }
-        .action-btn { width: 100%; margin-top: 5px; padding: 6px; border-radius: 5px; border: 1px solid #ccc; background: #fff; font-size: 0.75rem; font-weight: bold; }
+        .action-btn { width: 100%; margin-top: 5px; padding: 8px; border-radius: 5px; border: 1px solid #ccc; background: #fff; font-size: 0.75rem; font-weight: bold; cursor: pointer; }
         .lock-btn { position: absolute; top: 5px; right: 5px; background: none; border: none; font-size: 1.2rem; cursor: pointer; padding: 5px; }
         .backup-area { margin-top: 15px; border-top: 2px dashed #ccc; padding-top: 15px; }
-        textarea { width: 100%; height: 60px; font-size: 0.7rem; margin: 5px 0; }
+        textarea { width: 100%; height: 80px; font-size: 0.7rem; margin: 5px 0; background: #f9f9f9; border: 1px solid #ddd; padding: 5px; word-break: break-all; }
     </style>
 </head>
 <body>
@@ -66,10 +66,13 @@
         <div id="shop-list" style="display:flex; flex-direction:column; gap:8px;"></div>
         <div class="backup-area">
             <p style="font-size:0.8rem; font-weight:bold; margin:0;">💾 データバックアップ</p>
-            <textarea id="backup-text" readonly onclick="this.select()"></textarea>
+            <button class="action-btn" onclick="generateBackupCode()">バックアップコードを生成</button>
+            <textarea id="backup-text" readonly placeholder="ここにコードが生成されます"></textarea>
             <button class="action-btn" onclick="copyBackup()">コードをコピー</button>
-            <textarea id="restore-text" placeholder="ここにコードを貼り付け"></textarea>
-            <button class="action-btn" onclick="restoreData()" style="background:#eee;">復旧する</button>
+            <hr>
+            <p style="font-size:0.8rem; font-weight:bold; margin:10px 0 0 0;">🔄 データ復旧</p>
+            <textarea id="restore-text" placeholder="ここにコードを貼り付けてください"></textarea>
+            <button class="action-btn" onclick="restoreData()" style="background:#eee;">データを復旧する</button>
         </div>
     </div>
 
@@ -95,7 +98,7 @@ async function init() {
     const saved = localStorage.getItem(SAVE_KEY);
     if (saved) {
         const parsed = JSON.parse(saved);
-        gameData = {...gameData, ...parsed}; // 新規項目(clockCount等)が消えないようマージ
+        gameData = {...gameData, ...parsed};
         calcOffline();
     }
     checkLogin();
@@ -144,8 +147,9 @@ function getBaseIncome(char) {
 
 function getFullIncome(char) {
     const base = getBaseIncome(char);
-    const colorComp = Object.values(gameData.zukan).filter(z => Object.keys(z.colors).length >= 9).length;
-    const ivComp = Object.values(gameData.zukan).filter(z => z.maxIV === 100).length;
+    const z = gameData.zukan[char.type] || { colors: {}, maxIV: 0 };
+    const colorComp = Object.values(gameData.zukan).filter(z => Object.keys(z.colors || {}).length >= 9).length;
+    const ivComp = Object.values(gameData.zukan).filter(z => (z.maxIV || 0) >= 100).length;
     return base * (1 + colorComp * 0.1) * (1 + ivComp * 0.1) + (gameData.logDays || 0);
 }
 
@@ -158,7 +162,7 @@ function getCharacter() {
     if (gameData.characters.length + getCount > maxSpace) return alert("倉庫がいっぱいです");
 
     const wait = 3600000 * Math.pow(0.99, gameData.clockCount || 0);
-    if (Date.now() - gameData.lastGetTime < wait) return;
+    if (Date.now() - (gameData.lastGetTime || 0) < wait) return;
 
     for(let i=0; i<getCount; i++) {
         const t = config.characters[Math.floor(Math.random() * config.characters.length)];
@@ -172,7 +176,7 @@ function getCharacter() {
     gameData.lastGetDate = today;
     autoSetBestCharacter();
     save(); renderAll();
-    alert(getCount === 2 ? "2体GETしました！" : "1体GETしました！");
+    alert(getCount === 2 ? "ログインボーナス！2体GETしました！" : "キャラクターを獲得しました！");
 }
 
 function renderStorage() {
@@ -188,9 +192,8 @@ function renderStorage() {
 
     grid.innerHTML = list.map(c => {
         const isSet = c.id === gameData.activeCharId;
-        const lockIcon = c.locked ? "🔒" : "🔓";
         return `<div class="card ${isSet?'active-set':''}">
-            <button class="lock-btn" onclick="toggleLock(${c.id})">${lockIcon}</button>
+            <button class="lock-btn" onclick="toggleLock(${c.id})">${c.locked ? "🔒" : "🔓"}</button>
             <span style="font-size:1.5rem;">${getColorEmoji(c.color)}</span><br>
             <b>${c.type}</b><br>
             収益: ${getBaseIncome(c).toFixed(1)}<br>
@@ -234,6 +237,61 @@ function buy(type, price) {
     save(); renderAll();
 }
 
+function updateZukan(char) {
+    if (!gameData.zukan) gameData.zukan = {};
+    if (!gameData.zukan[char.type]) gameData.zukan[char.type] = { colors: {}, maxIV: 0 };
+    gameData.zukan[char.type].colors[char.color] = true;
+    gameData.zukan[char.type].maxIV = Math.max(gameData.zukan[char.type].maxIV || 0, char.iv);
+}
+
+function renderZukan() {
+    const zList = document.getElementById('zukan-list');
+    const discovered = Object.keys(gameData.zukan || {});
+    if (discovered.length === 0) {
+        zList.innerHTML = `<div style="grid-column:1/3; text-align:center; padding:20px; color:#aaa;">未発見</div>`;
+        return;
+    }
+    zList.innerHTML = discovered.map(type => {
+        const d = gameData.zukan[type];
+        const colorCount = Object.keys(d.colors || {}).length;
+        const colorComp = colorCount >= 9 ? "<br><span style='color:orange;'>色コンプ★</span>" : "";
+        const ivComp = (d.maxIV || 0) >= 100 ? "<br><span style='color:gold;'>IVコンプ★</span>" : "";
+        
+        return `<div class="card">
+            <b>${type}</b><br>
+            色: ${colorCount}/9
+            ${colorComp}
+            ${ivComp}
+        </div>`;
+    }).join('');
+}
+
+function generateBackupCode() {
+    const code = btoa(unescape(encodeURIComponent(JSON.stringify(gameData)))); // 日本語対応のBase64
+    document.getElementById('backup-text').value = code;
+}
+
+function copyBackup() {
+    const area = document.getElementById('backup-text');
+    if (!area.value) return alert("まずはコードを生成してください");
+    area.select();
+    document.execCommand('copy');
+    alert("コピーしました。大切に保管してください。");
+}
+
+function restoreData() {
+    const code = document.getElementById('restore-text').value;
+    if (!code) return alert("コードを入力してください");
+    try {
+        const data = JSON.parse(decodeURIComponent(escape(atob(code))));
+        if (confirm("データを上書きして復旧しますか？")) {
+            gameData = data;
+            save();
+            location.reload();
+        }
+    } catch(e) { alert("無効なコードです"); }
+}
+
 function gameLoop() {
     let inc = 0, name = "なし";
     if (gameData.activeCharId) {
@@ -259,69 +317,10 @@ function gameLoop() {
     gameData.lastUpdate = Date.now(); save();
 }
 
-function toggleLock(id) {
-    const char = gameData.characters.find(c => c.id === id);
-    if (char) { char.locked = !char.locked; save(); renderStorage(); }
-}
-
-function setActive(id) { 
-    gameData.activeCharId = (gameData.activeCharId===id)? null:id; 
-    if(!gameData.activeCharId) autoSetBestCharacter();
-    renderAll(); 
-}
-
-function delChar(id) { 
-    if(confirm("捨てますか？")){ 
-        gameData.characters=gameData.characters.filter(c=>c.id!==id); 
-        if(gameData.activeCharId===id) gameData.activeCharId = null;
-        autoSetBestCharacter();
-        renderAll(); 
-    } 
-}
-
-function updateZukan(char) {
-    if (!gameData.zukan) gameData.zukan = {};
-    if (!gameData.zukan[char.type]) gameData.zukan[char.type] = { colors: {}, maxIV: 0 };
-    gameData.zukan[char.type].colors[char.color] = true;
-    gameData.zukan[char.type].maxIV = Math.max(gameData.zukan[char.type].maxIV || 0, char.iv);
-}
-
-function renderZukan() {
-    const zList = document.getElementById('zukan-list');
-    const discovered = Object.keys(gameData.zukan || {});
-    if (discovered.length === 0) {
-        zList.innerHTML = `<div style="grid-column:1/3; text-align:center; padding:20px; color:#aaa;">未発見</div>`;
-        return;
-    }
-    zList.innerHTML = discovered.map(type => {
-        const d = gameData.zukan[type];
-        return `<div class="card"><b>${type}</b><br>色: ${Object.keys(d.colors).length}/9</div>`;
-    }).join('');
-}
-
-function copyBackup() {
-    const area = document.getElementById('backup-text');
-    area.select();
-    document.execCommand('copy');
-    alert("コピーしました");
-}
-
-function restoreData() {
-    const code = document.getElementById('restore-text').value;
-    if (!code) return;
-    try {
-        gameData = JSON.parse(atob(code));
-        save();
-        location.reload();
-    } catch(e) { alert("無効なコードです"); }
-}
-
-function save() {
-    localStorage.setItem(SAVE_KEY, JSON.stringify(gameData));
-    const backup = document.getElementById('backup-text');
-    if (backup) backup.value = btoa(JSON.stringify(gameData));
-}
-
+function save() { localStorage.setItem(SAVE_KEY, JSON.stringify(gameData)); }
+function toggleLock(id) { const char = gameData.characters.find(c => c.id === id); if (char) { char.locked = !char.locked; save(); renderStorage(); } }
+function setActive(id) { gameData.activeCharId = (gameData.activeCharId===id)? null:id; if(!gameData.activeCharId) autoSetBestCharacter(); renderAll(); }
+function delChar(id) { if(confirm("捨てますか？")){ gameData.characters=gameData.characters.filter(c=>c.id!==id); if(gameData.activeCharId===id) gameData.activeCharId = null; autoSetBestCharacter(); renderAll(); } }
 function switchTab(t) {
     ['storage','shop','zukan'].forEach(s => document.getElementById(s+'-sec').classList.add('hidden'));
     document.getElementById(t+'-sec').classList.remove('hidden');
@@ -329,7 +328,6 @@ function switchTab(t) {
     document.getElementById('tab-'+t).classList.add('active');
     renderAll();
 }
-
 function renderAll() { renderStorage(); renderShop(); renderZukan(); }
 init();
 </script>
