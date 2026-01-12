@@ -119,9 +119,14 @@ async function init() {
         const res = await fetch('config.json');
         config = await res.json();
         const saved = localStorage.getItem(SAVE_KEY);
-        if (saved) gameData = {...gameData, ...JSON.parse(saved)};
-        
-        // 常に2つ先まで運命を予約
+        if (saved) {
+            gameData = {...gameData, ...JSON.parse(saved)};
+        }
+
+        // --- 不正データ（undefined）の自動削除処理 ---
+        cleanBadData();
+
+        // 運命リストを最新の状態にする
         fillFate();
         
         calcOffline();
@@ -132,16 +137,43 @@ async function init() {
     } catch(e) { document.getElementById('timer').innerText = "Load Error"; }
 }
 
-function fillFate() {
-    while (gameData.nextFateList.length < 2) {
-        const t = config.characters[Math.floor(Math.random() * config.characters.length)];
-        const c = config.colors[Math.floor(Math.random() * config.colors.length)];
-        gameData.nextFateList.push({
-            type: t.type, color: c.name,
-            iv: Math.floor(Math.random() * 100) + 1, baseValue: t.baseValue
-        });
+function cleanBadData() {
+    // 1. 倉庫内の undefined を削除
+    gameData.characters = gameData.characters.filter(c => c && c.type && c.type !== "undefined");
+
+    // 2. 図鑑内の undefined を削除
+    if (gameData.zukan && gameData.zukan["undefined"]) {
+        delete gameData.zukan["undefined"];
+    }
+
+    // 3. 予約リスト内の不正データを掃除
+    if (gameData.nextFateList) {
+        gameData.nextFateList = gameData.nextFateList.filter(f => f && f.type);
+    } else {
+        gameData.nextFateList = [];
     }
     save();
+}
+
+function fillFate() {
+    if (!config) return;
+    // 常に2つ先まで運命を予約
+    while (gameData.nextFateList.length < 2) {
+        gameData.nextFateList.push(generateSingleFate());
+    }
+    save();
+}
+
+// 抽選処理を共通化
+function generateSingleFate() {
+    const t = config.characters[Math.floor(Math.random() * config.characters.length)];
+    const c = config.colors[Math.floor(Math.random() * config.colors.length)];
+    return {
+        type: t.type, 
+        color: c.name,
+        iv: Math.floor(Math.random() * 100) + 1, 
+        baseValue: t.baseValue
+    };
 }
 
 function getCharacter() {
@@ -155,14 +187,18 @@ function getCharacter() {
     if (Date.now() - (gameData.lastGetTime || 0) < wait) return;
 
     for(let i=0; i<getCount; i++) {
-        // 予約リストの先頭から取り出す
-        const fate = gameData.nextFateList.shift();
+        // --- 修正箇所：リストが空ならその場で生成（undefined対策） ---
+        let fate = gameData.nextFateList.shift();
+        if (!fate) {
+            fate = generateSingleFate();
+        }
+        
         const newChar = { id: Date.now() + i, ...fate, locked: false };
         gameData.characters.push(newChar);
         updateZukan(newChar);
     }
     
-    fillFate(); // 使った分を補充（バックアップを取る前に補充されるのでリセマラ不可）
+    fillFate(); 
     gameData.lastGetTime = Date.now();
     gameData.lastGetDate = today;
     autoSetBestCharacter();
