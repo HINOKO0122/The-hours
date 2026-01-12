@@ -274,6 +274,7 @@ for(let i=0; i<getCount; i++) {
 function renderStorage() {
     const grid = document.getElementById('storage-grid');
     const sort = document.getElementById('sort-select').value;
+    // 倉庫の空き状況（整数）
     document.getElementById('storage-usage').innerText = `${gameData.characters.length}/${3 + (gameData.storageLevel || 0)}`;
     let list = [...gameData.characters];
     if (sort === 'income') list.sort((a,b) => getBaseIncome(b) - getBaseIncome(a));
@@ -284,8 +285,8 @@ function renderStorage() {
         return `<div class="card ${isSet?'active-set':''}">
             <button class="lock-btn" onclick="toggleLock(${c.id})">${c.locked ? "🔒" : "🔓"}</button>
             <span style="font-size:1.5rem;">${getColorEmoji(c.color)}</span><br>
-            <b>${c.type}</b><br>個体値: ${c.iv}<br>収益: ${getBaseIncome(c).toFixed(1)}<br>
-            <button class="action-btn" onclick="setActive(${c.id})">${isSet?'解除':'セット'}</button>
+            <b>${c.type}</b><br>個体値: ${c.iv}<br>
+            収益: ${Math.round(getBaseIncome(c)).toLocaleString()}<br> <button class="action-btn" onclick="setActive(${c.id})">${isSet?'解除':'セット'}</button>
             <button class="action-btn" onclick="useSpray(${c.id})" ${gameData.sprayCount > 0 ? '' : 'style="color:#ccc;"'}>スプレー (${gameData.sprayCount||0})</button>
             ${!c.locked ? `<button class="action-btn" onclick="delChar(${c.id})" style="color:var(--danger); border-color:var(--danger);">捨てる</button>` : ''}
         </div>`;
@@ -368,12 +369,18 @@ function gameLoop() {
     let inc = 0, name = "なし";
     if (gameData.activeCharId) {
         const char = gameData.characters.find(c => c.id === gameData.activeCharId);
-        if (char) { inc = getFullIncome(char); name = `${char.color}の${char.type}`; gameData.money += inc; }
+        if (char) { 
+            inc = getFullIncome(char); 
+            name = `${char.color}の${char.type}`; 
+            gameData.money += inc; 
+        }
     }
+    // メインステータスの表示（四捨五入して整数に）
     document.getElementById('money').innerText = Math.floor(gameData.money).toLocaleString();
-    document.getElementById('income').innerText = inc.toFixed(1);
+    document.getElementById('income').innerText = Math.round(inc).toLocaleString(); // ★ここを四捨五入
     document.getElementById('active-name').innerText = name;
     document.getElementById('log-days').innerText = gameData.logDays || 0;
+    
     const wait = 3600000 * Math.pow(0.99, gameData.clockCount || 0);
     const rem = wait - (Date.now() - (gameData.lastGetTime || 0));
     const btn = document.getElementById('get-btn');
@@ -381,8 +388,12 @@ function gameLoop() {
         const m = Math.floor(rem/60000), s = Math.floor((rem%60000)/1000);
         document.getElementById('timer').innerText = `次まで ${m}分 ${s}秒`;
         btn.disabled = true;
-    } else { document.getElementById('timer').innerText = "獲得可能！"; btn.disabled = false; }
-    gameData.lastUpdate = Date.now(); save();
+    } else { 
+        document.getElementById('timer').innerText = "獲得可能！"; 
+        btn.disabled = false; 
+    }
+    gameData.lastUpdate = Date.now(); 
+    save();
 }
 
 function save() { localStorage.setItem(SAVE_KEY, JSON.stringify(gameData)); }
