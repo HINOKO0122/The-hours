@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="manifest.json?v=3">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>The hours</title>
     <style>
-        :root { --main: #2c3e50; --accent: #2980b9; --bg: #f4f7f6; }
+        :root { --main: #2c3e50; --accent: #2980b9; --bg: #f4f7f6; --lock: #95a5a6; --danger: #e74c3c; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 10px; color: var(--main); }
         .container { max-width: 500px; margin: auto; background: #fff; padding: 15px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
@@ -20,11 +20,12 @@
         .tab-btn { flex: 1; padding: 10px; border: none; background: #eee; border-radius: 8px; font-size: 0.8rem; }
         .tab-btn.active { background: var(--accent); color: #fff; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .card { border: 1px solid #eee; padding: 15px; border-radius: 12px; text-align: center; font-size: 0.85rem; background: #fff; }
+        .card { border: 1px solid #eee; padding: 15px; border-radius: 12px; text-align: center; font-size: 0.85rem; background: #fff; position: relative; }
         .card.active-set { border: 2px solid #27ae60; background: #f0fff4; }
         .hidden { display: none; }
         #timer { text-align: center; font-weight: bold; font-size: 0.9rem; color: #e74c3c; margin-bottom: 10px; }
-        .action-btn { width: 100%; margin-top: 5px; padding: 5px; border-radius: 5px; border: 1px solid #ccc; background: #fff; font-size: 0.75rem; }
+        .action-btn { width: 100%; margin-top: 5px; padding: 6px; border-radius: 5px; border: 1px solid #ccc; background: #fff; font-size: 0.75rem; font-weight: bold; cursor: pointer; }
+        .lock-btn { position: absolute; top: 5px; right: 5px; background: none; border: none; font-size: 1.2rem; cursor: pointer; padding: 5px; }
         .guide { margin-top: 20px; padding: 12px; background: #e8f4fd; border-radius: 10px; font-size: 0.75rem; color: #2980b9; line-height: 1.5; border: 1px solid #b3d7ef; }
     </style>
 </head>
@@ -69,9 +70,9 @@
     </div>
 
     <div class="guide">
-        <b>【アプリとして使う方法】</b><br>
-        ・iPhone: Safariの共有(↑)から「ホーム画面に追加」<br>
-        ・Android: Chromeの(⋮)から「アプリをインストール」
+        <b>【Tips】</b><br>
+        🔒アイコンを押すとキャラを保護できます。<br>
+        保護中は「捨てる」ボタンが表示されません。
     </div>
 </div>
 
@@ -88,7 +89,7 @@ async function init() {
         config = await res.json();
     } catch(e) { alert("config.jsonが見つかりません"); return; }
     
-    const saved = localStorage.getItem('TheHours_v7');
+    const saved = localStorage.getItem('TheHours_v8');
     if (saved) {
         gameData = JSON.parse(saved);
         calcOffline();
@@ -158,7 +159,14 @@ function getCharacter() {
     for(let i=0; i<getCount; i++) {
         const t = lotteryType();
         const c = lotteryColor();
-        const newChar = { id: Date.now() + i, type: t.type, color: c.name, iv: Math.floor(Math.random()*100)+1, baseValue: t.baseValue };
+        const newChar = { 
+            id: Date.now() + i, 
+            type: t.type, 
+            color: c.name, 
+            iv: Math.floor(Math.random()*100)+1, 
+            baseValue: t.baseValue,
+            locked: false // ロック初期値はfalse
+        };
         gameData.characters.push(newChar);
         updateZukan(newChar);
     }
@@ -166,7 +174,16 @@ function getCharacter() {
     gameData.lastGetTime = Date.now();
     gameData.lastGetDate = today;
     save(); renderAll();
-    alert(getCount === 2 ? "ログインボーナス！本日初の獲得で2体GETしました！" : "キャラクターを獲得しました！");
+    alert(getCount === 2 ? "ログインボーナス！2体GETしました！" : "キャラクターを獲得しました！");
+}
+
+function toggleLock(id) {
+    const char = gameData.characters.find(c => c.id === id);
+    if (char) {
+        char.locked = !char.locked;
+        save();
+        renderStorage();
+    }
 }
 
 function updateZukan(char) {
@@ -194,13 +211,15 @@ function renderStorage() {
 
     grid.innerHTML = list.map(c => {
         const isSet = c.id === gameData.activeCharId;
+        const lockIcon = c.locked ? "🔒" : "🔓";
         return `<div class="card ${isSet?'active-set':''}">
+            <button class="lock-btn" onclick="toggleLock(${c.id})">${lockIcon}</button>
             <span style="font-size:1.5rem;">${getColorEmoji(c.color)}</span><br>
             <b>${c.type}</b><br><small>(${c.color})</small><br>
             個体値: ${c.iv}<br>収益: ${getBaseIncome(c).toFixed(1)}<br>
             <button class="action-btn" onclick="setActive(${c.id})">${isSet?'解除':'セット'}</button>
             <button class="action-btn" onclick="useSpray(${c.id})">スプレー</button>
-            <button class="action-btn" onclick="delChar(${c.id})" style="color:red; border-color:red;">捨てる</button>
+            ${!c.locked ? `<button class="action-btn" onclick="delChar(${c.id})" style="color:var(--danger); border-color:var(--danger);">捨てる</button>` : ''}
         </div>`;
     }).join('');
 }
@@ -242,15 +261,12 @@ function buy(type, price) {
 }
 
 function renderZukan() {
-    // configにあるリストではなく、gameData.zukanにある「発見済み」のキーだけでループ
     const discovered = Object.keys(gameData.zukan);
     const zList = document.getElementById('zukan-list');
-    
     if (discovered.length === 0) {
         zList.innerHTML = `<div style="grid-column:1/3; text-align:center; padding:20px; color:#aaa;">まだ何も発見していません</div>`;
         return;
     }
-
     zList.innerHTML = discovered.map(type => {
         const d = gameData.zukan[type];
         const cCount = Object.keys(d.colors).length;
@@ -284,7 +300,15 @@ function gameLoop() {
 }
 
 function setActive(id) { gameData.activeCharId = (gameData.activeCharId===id)? null:id; renderAll(); }
-function delChar(id) { if(confirm("捨てますか？")){ gameData.characters=gameData.characters.filter(c=>c.id!==id); if(gameData.activeCharId===id)gameData.activeCharId=null; renderAll(); } }
+function delChar(id) { 
+    const char = gameData.characters.find(c => c.id === id);
+    if(char.locked) return; // ロック中なら何もしない
+    if(confirm("捨てますか？")){ 
+        gameData.characters=gameData.characters.filter(c=>c.id!==id); 
+        if(gameData.activeCharId===id)gameData.activeCharId=null; 
+        renderAll(); 
+    } 
+}
 function switchTab(t) {
     ['storage','shop','zukan'].forEach(s => document.getElementById(s+'-sec').classList.add('hidden'));
     document.getElementById(t+'-sec').classList.remove('hidden');
@@ -293,7 +317,7 @@ function switchTab(t) {
     renderAll();
 }
 function renderAll() { renderStorage(); renderShop(); renderZukan(); }
-function save() { localStorage.setItem('TheHours_v7', JSON.stringify(gameData)); }
+function save() { localStorage.setItem('TheHours_v8', JSON.stringify(gameData)); }
 init();
 </script>
 </body>
