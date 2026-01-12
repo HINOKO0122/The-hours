@@ -80,11 +80,12 @@
         <h3>・遊び方</h3>
         <p>1時間に1回ボタンを押すとランダムでモンスターをゲットできるよ！<br>一日の最初のゲットは追加で一体プレゼント！</p>
         <h3>・種族・色・個体値について</h3>
-        <p>種族：重み(weight)で確率が決まるよ！覚醒系は激レア！<br>色：金や銀は確率(prob)が低いけど収益が高いよ！<br>個体値：才能(1〜100)だよ。変えられないから大事にしよう！</p>
-        <h3>・バックアップ</h3>
-        <p>「生成」→「コピー」してメモ帳へ！定期的に保存してね。</p>
+        <p>種族：重み(weight)で確率が決まるよ！覚醒系は激レア！<br>色：金や銀は確率(prob)が低いけど収益が高いよ！<br>個体値：モンスターの才能を表してるよ！1から100まであって、数が多いほど強い！</p>
+        <p>変えられるのは色だけ！種族と個体値が良いキャラをゲットしよう！</p>
+        <h3>・データバックアップについて</h3>
+        <p>1.「コードを生成」を押す<br>2.「コードをコピー」を押す<br>3.メモ帳などに貼り付けて保管しておく</p>
         <h3>・強くなるには...?</h3>
-        <p>「種族」「色」「個体値」「図鑑の色コンプ」「最大個体値発見」「ログイン日数」が収益に関係するよ！</p>
+        <p>「種族」「色」「個体値」「図鑑の色コンプ率」「発見した最大個体値」「ログイン日数」が収益に影響するよ！</p>
     </div>
 </div>
 
@@ -104,8 +105,8 @@ async function init() {
         const saved = localStorage.getItem(SAVE_KEY);
         if (saved) gameData = {...gameData, ...JSON.parse(saved)};
         
-        cleanBadData(); // 不正なundefinedデータを掃除
-        fillFate(); // 予約リストを補充
+        cleanBadData();
+        fillFate();
         
         calcOffline();
         checkLogin();
@@ -115,11 +116,8 @@ async function init() {
     } catch(e) { document.getElementById('timer').innerText = "Load Error"; }
 }
 
-// 確率(weight/prob)に基づいた1体分の抽選
 function generateSingleFate() {
     if (!config) return null;
-
-    // 種族の重み付き抽選
     const totalW = config.characters.reduce((s, c) => s + (c.weight || 0), 0);
     let rW = Math.random() * totalW;
     let selC = config.characters[0];
@@ -127,8 +125,6 @@ function generateSingleFate() {
         if (rW < c.weight) { selC = c; break; }
         rW -= c.weight;
     }
-
-    // 色の重み付き抽選
     const totalP = config.colors.reduce((s, c) => s + (c.prob || 0), 0);
     let rP = Math.random() * totalP;
     let selCol = config.colors[0];
@@ -136,7 +132,6 @@ function generateSingleFate() {
         if (rP < c.prob) { selCol = c; break; }
         rP -= c.prob;
     }
-
     return {
         type: selC.type, color: selCol.name,
         iv: Math.floor(Math.random() * 100) + 1, baseValue: selC.baseValue
@@ -156,45 +151,22 @@ function getCharacter() {
     const isFirstToday = gameData.lastGetDate !== today;
     const getCount = isFirstToday ? 2 : 1;
     const maxSpace = 3 + (gameData.storageLevel || 0);
-
     if (gameData.characters.length + getCount > maxSpace) return alert("倉庫がいっぱいです");
     const wait = 3600000 * Math.pow(0.99, gameData.clockCount || 0);
     if (Date.now() - (gameData.lastGetTime || 0) < wait) return;
-
     for(let i=0; i<getCount; i++) {
         let fate = gameData.nextFateList.shift();
-        if (!fate) fate = generateSingleFate(); // 万が一空ならその場で
+        if (!fate) fate = generateSingleFate();
         const newChar = { id: Date.now() + i, ...fate, locked: false };
         gameData.characters.push(newChar);
         updateZukan(newChar);
     }
-    
     fillFate();
     gameData.lastGetTime = Date.now();
     gameData.lastGetDate = today;
     autoSetBestCharacter();
     save(); renderAll();
-    alert(getCount === 2 ? "ボーナス含め2体GET！" : "モンスターをGETした！");
-}
-
-function useSpray(id) {
-    if ((gameData.sprayCount || 0) <= 0) return alert("スプレー不足");
-    if (!confirm("色を変えますか？(金・銀は出にくいよ)")) return;
-    const char = gameData.characters.find(c => c.id === id);
-    if (char) {
-        gameData.sprayCount--;
-        // 色の重み付き抽選をここでも実行
-        const totalP = config.colors.reduce((s, c) => s + (c.prob || 0), 0);
-        let rP = Math.random() * totalP;
-        let selCol = config.colors[0];
-        for (const c of config.colors) {
-            if (rP < c.prob) { selCol = c; break; }
-            rP -= c.prob;
-        }
-        char.color = selCol.name;
-        updateZukan(char);
-        save(); renderAll();
-    }
+    alert(getCount === 2 ? "今日の初GETボーナスで2体手に入れた！" : "モンスターをゲットした！");
 }
 
 function renderStorage() {
@@ -212,8 +184,8 @@ function renderStorage() {
             <span style="font-size:1.5rem;">${getColorEmoji(c.color)}</span><br>
             <b>${c.type}</b><br>個体値: ${c.iv}<br>収益: ${getBaseIncome(c).toFixed(1)}<br>
             <button class="action-btn" onclick="setActive(${c.id})">${isSet?'解除':'セット'}</button>
-            <button class="action-btn" onclick="useSpray(${c.id})" ${gameData.sprayCount > 0 ? '' : 'style="color:#ccc;"'}>スプレー</button>
-            ${!c.locked ? `<button class="action-btn" onclick="delChar(${c.id})" style="color:var(--danger);">捨てる</button>` : ''}
+            <button class="action-btn" onclick="useSpray(${c.id})" ${gameData.sprayCount > 0 ? '' : 'style="color:#ccc;"'}>スプレー (${gameData.sprayCount||0})</button>
+            ${!c.locked ? `<button class="action-btn" onclick="delChar(${c.id})" style="color:var(--danger); border-color:var(--danger);">捨てる</button>` : ''}
         </div>`;
     }).join('');
 }
@@ -222,10 +194,45 @@ function renderShop() {
     const list = document.getElementById('shop-list');
     const sPrice = 1000 * Math.pow(2, gameData.storageLevel || 0);
     list.innerHTML = `
-        <div class="card" style="text-align:left;"><b>倉庫拡張</b><br><small>${sPrice.toLocaleString()}円</small><button class="action-btn" onclick="buy('s',${sPrice})">購入</button></div>
-        <div class="card" style="text-align:left;"><b>カラースプレー</b><br><small>10,000円 / 所持:${gameData.sprayCount||0}</small><button class="action-btn" onclick="buy('p',10000)">購入</button></div>
-        <div class="card" style="text-align:left;"><b>真実の時計</b><br><small>1億円 / 所持:${gameData.clockCount||0}</small><button class="action-btn" onclick="buy('c',100000000)">購入</button></div>
+        <div class="card" style="text-align:left;">
+            <b>倉庫拡張 (+1)</b><br>
+            <small style="color: #666; display: block; margin-bottom: 5px;">倉庫の最大容量を増やします</small>
+            <small>価格: ${sPrice.toLocaleString()}円 / 現在: ${3+gameData.storageLevel}体</small>
+            <button class="action-btn" onclick="buy('s',${sPrice})">購入</button>
+        </div>
+        <div class="card" style="text-align:left;">
+            <b>カラースプレー</b><br>
+            <small style="color: #666; display: block; margin-bottom: 5px;">使用したキャラの色がランダムで変わるよ！</small>
+            <small>価格: 10,000円 / <b>所持数: ${gameData.sprayCount||0}個</b></small>
+            <button class="action-btn" onclick="buy('p',10000)">購入</button>
+        </div>
+        <div class="card" style="text-align:left;">
+            <b>真実の時計</b><br>
+            <small style="color: #666; display: block; margin-bottom: 5px;">クールタイム(1時間)が所持数に応じて少し短くなるよ！</small>
+            <small>価格: 1億円 / <b>所持数: ${gameData.clockCount||0}個</b></small>
+            <button class="action-btn" onclick="buy('c',100000000)">購入</button>
+        </div>
     `;
+}
+
+function useSpray(id) {
+    if ((gameData.sprayCount || 0) <= 0) return alert("スプレー不足");
+    if (!confirm("色を変えますか？(レアな色は出にくいよ)")) return;
+    const char = gameData.characters.find(c => c.id === id);
+    if (char) {
+        gameData.sprayCount--;
+        const totalP = config.colors.reduce((s, c) => s + (c.prob || 0), 0);
+        let rP = Math.random() * totalP;
+        let selCol = config.colors[0];
+        for (const c of config.colors) {
+            if (rP < c.prob) { selCol = c; break; }
+            rP -= c.prob;
+        }
+        char.color = selCol.name;
+        updateZukan(char);
+        save(); renderAll();
+        alert(`スプレーを使って「${selCol.name}」に染まった！`);
+    }
 }
 
 function getBaseIncome(char) {
