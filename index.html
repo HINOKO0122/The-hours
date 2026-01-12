@@ -178,7 +178,8 @@ let config = null;
 let gameData = {
     money: 0, characters: [], activeCharId: null, lastGetTime: 0, lastUpdate: Date.now(),
     zukan: {}, storageLevel: 0, sprayCount: 0, clockCount: 0, logDays: 0, lastLogDate: "", lastGetDate: "",
-    nextFateList: []
+    nextFateList: [],
+    discardCount: {} // ★追加：ここに種族ごとの捨てた数を記録します
 };
 
 async function init() {
@@ -285,7 +286,9 @@ function renderStorage() {
         return `<div class="card ${isSet?'active-set':''}">
             <button class="lock-btn" onclick="toggleLock(${c.id})">${c.locked ? "🔒" : "🔓"}</button>
             <span style="font-size:1.5rem;">${getColorEmoji(c.color)}</span><br>
-            <b>${c.type}</b><br>個体値: ${c.iv}<br>
+            <b>${c.type}</b><br>
+固有値: ${c.baseValue + (gameData.discardCount[c.type] || 0)}<br>
+個体値: ${c.iv}<br>
             収益: ${Math.round(getBaseIncome(c)).toLocaleString()}<br> <button class="action-btn" onclick="setActive(${c.id})">${isSet?'解除':'セット'}</button>
             <button class="action-btn" onclick="useSpray(${c.id})" ${gameData.sprayCount > 0 ? '' : 'style="color:#ccc;"'}>スプレー (${gameData.sprayCount||0})</button>
             ${!c.locked ? `<button class="action-btn" onclick="delChar(${c.id})" style="color:var(--danger); border-color:var(--danger);">捨てる</button>` : ''}
@@ -341,7 +344,13 @@ function useSpray(id) {
 function getBaseIncome(char) {
     if(!config) return 0;
     const cData = config.colors.find(c => c.name === char.color);
-    return char.baseValue * (char.iv / 100) * (cData ? cData.bonus : 1);
+    
+    // 元々の固有値 ＋ 捨てた数
+    const bonusBase = gameData.discardCount[char.type] || 0;
+    const currentBaseValue = char.baseValue + bonusBase;
+    
+    // (固有値 + 捨てた数) × (個体値/100) × 色倍率
+    return currentBaseValue * (char.iv / 100) * (cData ? cData.bonus : 1);
 }
 
 function getFullIncome(char) {
@@ -436,7 +445,24 @@ function showToast(msg) {
 }
 function toggleLock(id) { const char = gameData.characters.find(c => c.id === id); if (char) { char.locked = !char.locked; save(); renderStorage(); } }
 function setActive(id) { gameData.activeCharId = (gameData.activeCharId===id)? null:id; if(!gameData.activeCharId) autoSetBestCharacter(); renderAll(); }
-function delChar(id) { if(confirm("捨てる？")){ gameData.characters=gameData.characters.filter(c=>c.id!==id); if(gameData.activeCharId===id) gameData.activeCharId = null; autoSetBestCharacter(); renderAll(); } }
+function delChar(id) {
+    if(confirm("このモンスターを逃がしますか？\n(その種族の【固有値】が +1 されます)")){
+        const char = gameData.characters.find(c => c.id === id);
+        if (char) {
+            // 種族ごとの捨てたカウントを加算
+            if (!gameData.discardCount[char.type]) gameData.discardCount[char.type] = 0;
+            gameData.discardCount[char.type]++;
+            
+            // 削除処理
+            gameData.characters = gameData.characters.filter(c => c.id !== id);
+            if(gameData.activeCharId === id) gameData.activeCharId = null;
+            autoSetBestCharacter();
+            save();
+            renderAll();
+            showToast(`${char.type}の固有値が +1 向上した！`);
+        }
+    }
+}
 function switchTab(t) {
     ['storage','shop','zukan'].forEach(s => document.getElementById(s+'-sec').classList.add('hidden'));
     document.getElementById(t+'-sec').classList.remove('hidden');
