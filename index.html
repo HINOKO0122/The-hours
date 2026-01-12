@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <link rel="manifest" href="manifest.json?v=7">
+    <link rel="manifest" href="manifest.json?v=8">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>The hours</title>
@@ -51,28 +51,19 @@
     </div>
 
     <div id="storage-sec">
-        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <div style="font-weight: bold;">倉庫: <span id="storage-usage">0/0</span></div>
-            <select id="sort-select" onchange="renderStorage()" style="font-size: 0.8rem;">
-                <option value="new">新しい順</option>
-                <option value="type">キャラ順</option>
-                <option value="income">収益順</option>
-            </select>
-        </div>
         <div id="storage-grid" class="grid"></div>
     </div>
 
     <div id="shop-sec" class="hidden">
         <div id="shop-list" style="display:flex; flex-direction:column; gap:8px;"></div>
         <div class="backup-area">
-            <p style="font-size:0.8rem; font-weight:bold; margin:0;">💾 データバックアップ</p>
+            <p style="font-size:0.8rem; font-weight:bold;">💾 バックアップ</p>
             <button class="action-btn" onclick="generateBackupCode()">コードを生成</button>
-            <textarea id="backup-text" readonly placeholder="ここにコードが生成されます"></textarea>
+            <textarea id="backup-text" readonly></textarea>
             <button class="action-btn" onclick="copyBackup()">コードをコピー</button>
             <hr>
-            <p style="font-size:0.8rem; font-weight:bold; margin:10px 0 0 0;">🔄 データ復旧</p>
-            <textarea id="restore-text" placeholder="ここにコードを貼り付けてください"></textarea>
-            <button class="action-btn" onclick="restoreData()" style="background:#eee;">データを復旧する</button>
+            <textarea id="restore-text" placeholder="復旧コードを貼り付け"></textarea>
+            <button class="action-btn" onclick="restoreData()">データを復旧</button>
         </div>
     </div>
 
@@ -86,70 +77,42 @@ const SAVE_KEY = 'TheHours_v8';
 let config = null;
 let gameData = {
     money: 0, characters: [], activeCharId: null, lastGetTime: 0, lastUpdate: Date.now(),
-    zukan: {}, storageLevel: 0, sprayCount: 0, clockCount: 0, logDays: 0, lastLogDate: "", lastGetDate: ""
+    zukan: {}, storageLevel: 0, sprayCount: 0, clockCount: 0, logDays: 0, lastLogDate: "", lastGetDate: "",
+    nextFate: null // リセマラ防止用の「次の運命」
 };
 
 async function init() {
     try {
         const res = await fetch('config.json');
         config = await res.json();
-    } catch(e) { alert("config.jsonが見つかりません"); return; }
+    } catch(e) { alert("config.jsonエラー"); return; }
     
     const saved = localStorage.getItem(SAVE_KEY);
     if (saved) {
-        const parsed = JSON.parse(saved);
-        gameData = {...gameData, ...parsed};
+        gameData = {...gameData, ...JSON.parse(saved)};
         calcOffline();
     }
+    
+    // 次の運命が未設定なら初期生成
+    if (!gameData.nextFate) generateNextFate();
+    
     checkLogin();
     autoSetBestCharacter();
     renderAll();
     setInterval(gameLoop, 1000);
 }
 
-function checkLogin() {
-    const today = new Date().toLocaleDateString();
-    if (gameData.lastLogDate !== today) {
-        gameData.logDays = (gameData.logDays || 0) + 1;
-        gameData.lastLogDate = today;
-        save();
-    }
-}
-
-function calcOffline() {
-    if (!gameData.activeCharId) return;
-    const now = Date.now();
-    const diff = Math.floor((now - gameData.lastUpdate) / 1000);
-    if (diff > 0) {
-        const char = gameData.characters.find(c => c.id === gameData.activeCharId);
-        if (char) gameData.money += getFullIncome(char) * diff;
-    }
-}
-
-function autoSetBestCharacter() {
-    if (!gameData.activeCharId && gameData.characters.length > 0) {
-        let bestChar = gameData.characters[0];
-        let maxInc = getBaseIncome(bestChar);
-        gameData.characters.forEach(c => {
-            let inc = getBaseIncome(c);
-            if (inc > maxInc) { maxInc = inc; bestChar = c; }
-        });
-        gameData.activeCharId = bestChar.id;
-        save();
-    }
-}
-
-function getBaseIncome(char) {
-    const cData = config.colors.find(c => c.name === char.color);
-    const bonus = cData ? cData.bonus : 1;
-    return char.baseValue * (char.iv / 100) * bonus;
-}
-
-function getFullIncome(char) {
-    const base = getBaseIncome(char);
-    const colorComp = Object.values(gameData.zukan).filter(z => Object.keys(z.colors || {}).length >= 9).length;
-    const ivComp = Object.values(gameData.zukan).filter(z => (z.maxIV || 0) >= 100).length;
-    return base * (1 + colorComp * 0.1) * (1 + ivComp * 0.1) + (gameData.logDays || 0);
+// 次に出るキャラをあらかじめ決めて保存しておく
+function generateNextFate() {
+    const t = config.characters[Math.floor(Math.random() * config.characters.length)];
+    const c = config.colors[Math.floor(Math.random() * config.colors.length)];
+    gameData.nextFate = {
+        type: t.type,
+        color: c.name,
+        iv: Math.floor(Math.random() * 100) + 1,
+        baseValue: t.baseValue
+    };
+    save();
 }
 
 function getCharacter() {
@@ -164,150 +127,117 @@ function getCharacter() {
     if (Date.now() - (gameData.lastGetTime || 0) < wait) return;
 
     for(let i=0; i<getCount; i++) {
-        const t = config.characters[Math.floor(Math.random() * config.characters.length)];
-        const c = config.colors[Math.floor(Math.random() * config.colors.length)];
-        const newChar = { id: Date.now() + i, type: t.type, color: c.name, iv: Math.floor(Math.random()*100)+1, baseValue: t.baseValue, locked: false };
+        // 保存されていた「運命」を倉庫に入れる
+        const newChar = { 
+            id: Date.now() + i, 
+            ...gameData.nextFate, 
+            locked: false 
+        };
         gameData.characters.push(newChar);
         updateZukan(newChar);
+        
+        // 入手した瞬間に「次の運命」を新しくサイコロ振る
+        generateNextFate(); 
     }
     
     gameData.lastGetTime = Date.now();
     gameData.lastGetDate = today;
     autoSetBestCharacter();
     save(); renderAll();
-    alert(getCount === 2 ? "2体GETしました！" : "1体GETしました！");
+    alert(getCount === 2 ? "2体GET！" : "1体GET！");
 }
 
-function renderStorage() {
-    const grid = document.getElementById('storage-grid');
-    const sort = document.getElementById('sort-select').value;
-    let list = [...gameData.characters];
-
-    if (sort === 'type') list.sort((a,b) => b.baseValue - a.baseValue);
-    else if (sort === 'income') list.sort((a,b) => getBaseIncome(b) - getBaseIncome(a));
-    else list.reverse();
-
-    document.getElementById('storage-usage').innerText = `${gameData.characters.length}/${3 + (gameData.storageLevel || 0)}`;
-
-    grid.innerHTML = list.map(c => {
-        const isSet = c.id === gameData.activeCharId;
-        return `<div class="card ${isSet?'active-set':''}">
-            <button class="lock-btn" onclick="toggleLock(${c.id})">${c.locked ? "🔒" : "🔓"}</button>
-            <span style="font-size:1.5rem;">${getColorEmoji(c.color)}</span><br>
-            <b>${c.type}</b><br>
-            個体値: ${c.iv}<br>
-            収益: ${getBaseIncome(c).toFixed(1)}<br>
-            <button class="action-btn" onclick="setActive(${c.id})">${isSet?'解除':'セット'}</button>
-            <button class="action-btn" onclick="useSpray(${c.id})" ${gameData.sprayCount > 0 ? '' : 'style="color:#ccc; border-color:#eee;"'}>スプレー (${gameData.sprayCount || 0})</button>
-            ${!c.locked ? `<button class="action-btn" onclick="delChar(${c.id})" style="color:var(--danger); border-color:var(--danger);">捨てる</button>` : ''}
-        </div>`;
-    }).join('');
-}
-
-// スプレー使用関数も念のため再確認
 function useSpray(id) {
-    if ((gameData.sprayCount || 0) <= 0) return alert("カラースプレーを持っていません");
-    if (!confirm("カラースプレーを使用して色をランダムに変更しますか？")) return;
+    if ((gameData.sprayCount || 0) <= 0) return alert("スプレーがありません");
+    if (!confirm("色をランダムに変えますか？")) return;
     
     const char = gameData.characters.find(c => c.id === id);
     if (char) {
         gameData.sprayCount--;
         const c = config.colors[Math.floor(Math.random() * config.colors.length)];
         char.color = c.name;
-        updateZukan(char); // 新しい色を図鑑に登録
-        save();
+        updateZukan(char);
+        save(); // 使用した瞬間に保存（やり直し不可）
         renderAll();
         alert(`色が「${c.name}」に変わりました！`);
     }
 }
 
-function getColorEmoji(colorName) {
-    const emojis = {"赤":"🩷","橙":"🧡","黄":"💛","緑":"💚","青":"🩵","藍":"💙","紫":"💜","銀":"🥈","金":"👑"};
-    return emojis[colorName] || "⚪";
-}
-
-function renderShop() {
-    const list = document.getElementById('shop-list');
-    const sPrice = 1000 * Math.pow(2, gameData.storageLevel || 0);
-    const clockPrice = 100000000;
-    list.innerHTML = `
-        <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
-            <div style="text-align:left;"><b>倉庫拡張 (+1)</b><br><small>${sPrice.toLocaleString()}円</small></div>
-            <button onclick="buy('s',${sPrice})">購入</button>
-        </div>
-        <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
-            <div style="text-align:left;"><b>カラースプレー</b><br><small>10,000円 / 所持: ${gameData.sprayCount||0}</small></div>
-            <button onclick="buy('p',10000)">購入</button>
-        </div>
-        <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
-            <div style="text-align:left;"><b>真実の時計</b><br><small>1億円 / 所持: ${gameData.clockCount||0}</small></div>
-            <button onclick="buy('c',${clockPrice})">購入</button>
-        </div>
-    `;
-}
-
-function buy(type, price) {
-    if (gameData.money < price) return alert("お金が足りません");
-    gameData.money -= price;
-    if(type==='s') gameData.storageLevel = (gameData.storageLevel || 0) + 1;
-    if(type==='p') gameData.sprayCount = (gameData.sprayCount || 0) + 1;
-    if(type==='c') gameData.clockCount = (gameData.clockCount || 0) + 1;
-    save(); renderAll();
-}
-
-function updateZukan(char) {
-    if (!gameData.zukan) gameData.zukan = {};
-    if (!gameData.zukan[char.type]) gameData.zukan[char.type] = { colors: {}, maxIV: 0 };
-    gameData.zukan[char.type].colors[char.color] = true;
-    gameData.zukan[char.type].maxIV = Math.max(gameData.zukan[char.type].maxIV || 0, char.iv);
+function renderStorage() {
+    const grid = document.getElementById('storage-grid');
+    let list = [...gameData.characters].reverse();
+    grid.innerHTML = list.map(c => {
+        const isSet = c.id === gameData.activeCharId;
+        return `<div class="card ${isSet?'active-set':''}">
+            <button class="lock-btn" onclick="toggleLock(${c.id})">${c.locked ? "🔒" : "🔓"}</button>
+            <span style="font-size:1.5rem;">${getColorEmoji(c.color)}</span><br>
+            <b>${c.type}</b><br>個体値: ${c.iv}<br>収益: ${getBaseIncome(c).toFixed(1)}<br>
+            <button class="action-btn" onclick="setActive(${c.id})">${isSet?'解除':'セット'}</button>
+            <button class="action-btn" onclick="useSpray(${c.id})" ${gameData.sprayCount > 0 ? '' : 'style="color:#ccc; border-color:#eee;"'}>スプレー (${gameData.sprayCount||0})</button>
+            ${!c.locked ? `<button class="action-btn" onclick="delChar(${c.id})" style="color:var(--danger); border-color:var(--danger);">捨てる</button>` : ''}
+        </div>`;
+    }).join('');
 }
 
 function renderZukan() {
     const zList = document.getElementById('zukan-list');
     const discovered = Object.keys(gameData.zukan || {});
-    if (discovered.length === 0) {
-        zList.innerHTML = `<div style="grid-column:1/3; text-align:center; padding:20px; color:#aaa;">未発見</div>`;
-        return;
-    }
     zList.innerHTML = discovered.map(type => {
         const d = gameData.zukan[type];
         const colorCount = Object.keys(d.colors || {}).length;
         const maxIV = d.maxIV || 0;
-        const colorComp = colorCount >= 9 ? "<br><span style='color:orange;'>色コンプ★</span>" : "";
-        const ivComp = maxIV >= 100 ? "<br><span style='color:gold;'>MAX個体値発見★</span>" : "";
-        
         return `<div class="card">
-            <b>${type}</b><br>
-            色: ${colorCount}/9<br>
-            最大個体値: ${maxIV}
-            ${colorComp}
-            ${ivComp}
+            <b>${type}</b><br>色: ${colorCount}/9<br>最大個体値: ${maxIV}
+            ${colorCount>=9 ? "<br><span style='color:orange;'>色コンプ★</span>":""}
+            ${maxIV>=100 ? "<br><span style='color:gold;'>MAX個体値発見★</span>":""}
         </div>`;
     }).join('');
 }
 
-function generateBackupCode() {
-    const code = btoa(unescape(encodeURIComponent(JSON.stringify(gameData))));
-    document.getElementById('backup-text').value = code;
+// --- 以下、既存の補助関数 ---
+function getBaseIncome(char) {
+    const cData = config.colors.find(c => c.name === char.color);
+    return char.baseValue * (char.iv / 100) * (cData ? cData.bonus : 1);
 }
-
-function copyBackup() {
-    const area = document.getElementById('backup-text');
-    if (!area.value) return alert("まずはコードを生成してください");
-    area.select();
-    document.execCommand('copy');
-    alert("コピーしました");
+function getFullIncome(char) {
+    const base = getBaseIncome(char);
+    const colorComp = Object.values(gameData.zukan).filter(z => Object.keys(z.colors || {}).length >= 9).length;
+    const ivComp = Object.values(gameData.zukan).filter(z => (z.maxIV || 0) >= 100).length;
+    return base * (1 + colorComp * 0.1) * (1 + ivComp * 0.1) + (gameData.logDays || 0);
 }
-
-function restoreData() {
-    const code = document.getElementById('restore-text').value;
-    if (!code) return alert("コードを入力してください");
-    try {
-        const data = JSON.parse(decodeURIComponent(escape(atob(code))));
-        if (confirm("復旧しますか？")) { gameData = data; save(); location.reload(); }
-    } catch(e) { alert("無効なコードです"); }
+function getColorEmoji(colorName) {
+    const emojis = {"赤":"🩷","橙":"🧡","黄":"💛","緑":"💚","青":"🩵","藍":"💙","紫":"💜","銀":"🥈","金":"👑"};
+    return emojis[colorName] || "⚪";
 }
-
+function renderShop() {
+    const list = document.getElementById('shop-list');
+    const sPrice = 1000 * Math.pow(2, gameData.storageLevel || 0);
+    list.innerHTML = `
+        <div class="card">倉庫拡張 (+1): ${sPrice.toLocaleString()}円 <button onclick="buy('s',${sPrice})">購入</button></div>
+        <div class="card">カラースプレー: 10,000円 <button onclick="buy('p',10000)">購入</button></div>
+        <div class="card">真実の時計: 1億円 <button onclick="buy('c',100000000)">購入</button></div>
+    `;
+}
+function buy(type, price) {
+    if (gameData.money < price) return alert("お金不足");
+    gameData.money -= price;
+    if(type==='s') gameData.storageLevel++;
+    if(type==='p') gameData.sprayCount++;
+    if(type==='c') gameData.clockCount++;
+    save(); renderAll();
+}
+function autoSetBestCharacter() {
+    if (!gameData.activeCharId && gameData.characters.length > 0) {
+        let best = gameData.characters[0];
+        gameData.characters.forEach(c => { if(getBaseIncome(c) > getBaseIncome(best)) best = c; });
+        gameData.activeCharId = best.id;
+    }
+}
+function updateZukan(char) {
+    if (!gameData.zukan[char.type]) gameData.zukan[char.type] = { colors: {}, maxIV: 0 };
+    gameData.zukan[char.type].colors[char.color] = true;
+    gameData.zukan[char.type].maxIV = Math.max(gameData.zukan[char.type].maxIV || 0, char.iv);
+}
 function gameLoop() {
     let inc = 0, name = "なし";
     if (gameData.activeCharId) {
@@ -318,7 +248,6 @@ function gameLoop() {
     document.getElementById('income').innerText = inc.toFixed(1);
     document.getElementById('active-name').innerText = name;
     document.getElementById('log-days').innerText = gameData.logDays || 0;
-
     const wait = 3600000 * Math.pow(0.99, gameData.clockCount || 0);
     const rem = wait - (Date.now() - (gameData.lastGetTime || 0));
     const btn = document.getElementById('get-btn');
@@ -326,17 +255,13 @@ function gameLoop() {
         const m = Math.floor(rem/60000), s = Math.floor((rem%60000)/1000);
         document.getElementById('timer').innerText = `次まで ${m}分 ${s}秒`;
         btn.disabled = true;
-    } else {
-        document.getElementById('timer').innerText = "獲得可能！";
-        btn.disabled = false;
-    }
+    } else { document.getElementById('timer').innerText = "獲得可能！"; btn.disabled = false; }
     gameData.lastUpdate = Date.now(); save();
 }
-
 function save() { localStorage.setItem(SAVE_KEY, JSON.stringify(gameData)); }
 function toggleLock(id) { const char = gameData.characters.find(c => c.id === id); if (char) { char.locked = !char.locked; save(); renderStorage(); } }
 function setActive(id) { gameData.activeCharId = (gameData.activeCharId===id)? null:id; if(!gameData.activeCharId) autoSetBestCharacter(); renderAll(); }
-function delChar(id) { if(confirm("捨てますか？")){ gameData.characters=gameData.characters.filter(c=>c.id!==id); if(gameData.activeCharId===id) gameData.activeCharId = null; autoSetBestCharacter(); renderAll(); } }
+function delChar(id) { if(confirm("捨てる？")){ gameData.characters=gameData.characters.filter(c=>c.id!==id); if(gameData.activeCharId===id) gameData.activeCharId = null; autoSetBestCharacter(); renderAll(); } }
 function switchTab(t) {
     ['storage','shop','zukan'].forEach(s => document.getElementById(s+'-sec').classList.add('hidden'));
     document.getElementById(t+'-sec').classList.remove('hidden');
@@ -344,6 +269,10 @@ function switchTab(t) {
     document.getElementById('tab-'+t).classList.add('active');
     renderAll();
 }
+function generateBackupCode() { document.getElementById('backup-text').value = btoa(unescape(encodeURIComponent(JSON.stringify(gameData)))); }
+function copyBackup() { const a = document.getElementById('backup-text'); a.select(); document.execCommand('copy'); alert("コピー済"); }
+function restoreData() { const c = document.getElementById('restore-text').value; try { gameData = JSON.parse(decodeURIComponent(escape(atob(c)))); save(); location.reload(); } catch(e) { alert("無効"); } }
+function checkLogin() { const t = new Date().toLocaleDateString(); if (gameData.lastLogDate !== t) { gameData.logDays++; gameData.lastLogDate = t; save(); } }
 function renderAll() { renderStorage(); renderShop(); renderZukan(); }
 init();
 </script>
