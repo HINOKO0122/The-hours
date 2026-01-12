@@ -253,7 +253,7 @@ for(let i=0; i<getCount; i++) {
     updateZukan(newChar);
 
     // --- ここにレア演出判定を追加 ---
-    const kakuseiList = ["覚醒・龍", "覚醒・鳳凰", "覚醒・麒麟", "覚醒・霊亀"]; // configに合わせて調整してください
+    const kakuseiList = ["覚醒スライム", "覚醒ゴブリン", "覚醒ドラゴン", "覚醒フェニックス"]; // configに合わせて調整してください
     if (newChar.iv === 100 || kakuseiList.includes(newChar.type)) {
         specialEffect(`${newChar.type} (個体値:${newChar.iv}) を引き当てた！！`);
     }
