@@ -45,12 +45,12 @@
 #toast.show { opacity: 1; }
     　/* 虹色に光るアニメーション */
 @keyframes rainbow-border {
-    0% { border-color: #ff0000; }
-    20% { border-color: #ffff00; }
-    40% { border-color: #00ff00; }
-    60% { border-color: #00ffff; }
-    80% { border-color: #0000ff; }
-    100% { border-color: #ff00ff; }
+    0% { border-color: #ff0000; box-shadow: 0 0 8px #ff0000; }
+    20% { border-color: #ffff00; box-shadow: 0 0 8px #ffff00; }
+    40% { border-color: #00ff00; box-shadow: 0 0 8px #00ff00; }
+    60% { border-color: #00ffff; box-shadow: 0 0 8px #00ffff; }
+    80% { border-color: #0000ff; box-shadow: 0 0 8px #0000ff; }
+    100% { border-color: #ff00ff; box-shadow: 0 0 8px #ff00ff; }
 }
 
 /* 全色コンプ（縁が虹色） */
@@ -58,9 +58,9 @@
 .grid .card.comp-rainbow {
     border: 3px solid !important;
     animation: rainbow-border 3s linear infinite !important;
-    box-shadow: 0 0 10px rgba(255, 215, 0, 0.5); /* ついでに少し光らせる */
+    /* 背景を白く保つか、あるいは少しだけ明るくして虹色を際立たせる */
+    background: #fff !important; 
 }
-
 /* 個体値100（中が薄い黄色） */
 .iv100-bg {
     background: #fff9c4 !important; /* 薄い黄色 */
@@ -285,7 +285,7 @@ function renderStorage() {
         return `<div class="card ${isSet?'active-set':''}">
             <button class="lock-btn" onclick="toggleLock(${c.id})">${c.locked ? "🔒" : "🔓"}</button>
             <span style="font-size:1.5rem;">${getColorEmoji(c.color)}</span><br>
-            <b>${c.type}</b><br>
+            <small style="color: #666;">${c.color}</small><br> <b>${c.type}</b><br>
             個体値: ${c.iv}<br>
             収益: ${Math.round(getBaseIncome(c)).toLocaleString()}<br>
             <button class="action-btn" onclick="setActive(${c.id})">${isSet?'解除':'セット'}</button>
