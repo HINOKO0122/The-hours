@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>The hours</title>
     <style>
         :root { --main: #2c3e50; --accent: #2980b9; --bg: #f4f7f6; }
@@ -33,7 +32,7 @@
     <h1>The hours</h1>
     <div class="status">
         <div>金貨: <span id="money">0</span></div>
-        <div>毎秒: <span id="income">0</span></div>
+        <div>現在の収益: <span id="income">0</span>/s</div>
         <div class="status-full">セット中: <span id="active-name">なし</span></div>
         <div class="status-full">累計ログイン: <span id="log-days">0</span>日</div>
     </div>
@@ -72,7 +71,7 @@
 let config = null;
 let gameData = {
     money: 0, characters: [], activeCharId: null, lastGetTime: 0, lastUpdate: Date.now(),
-    zukan: {}, storageLevel: 0, sprayCount: 0, clockCount: 0, logDays: 0, lastLogDate: ""
+    zukan: {}, storageLevel: 0, sprayCount: 0, clockCount: 0, logDays: 0, lastLogDate: "", lastGetDate: ""
 };
 
 async function init() {
@@ -81,7 +80,7 @@ async function init() {
         config = await res.json();
     } catch(e) { alert("config.jsonが見つかりません"); return; }
     
-    const saved = localStorage.getItem('TheHours_Final_NoImg');
+    const saved = localStorage.getItem('TheHours_Final_v5');
     if (saved) {
         gameData = JSON.parse(saved);
         calcOffline();
@@ -123,26 +122,32 @@ function lotteryColor() {
     return config.colors[0];
 }
 
+// 倉庫表示用（基本収益）
 function getBaseIncome(char) {
     const cData = config.colors.find(c => c.name === char.color);
     return char.baseValue * (char.iv / 100) * cData.bonus;
 }
 
+// 稼働用（全てのボーナス込）
 function getFullIncome(char) {
     const base = getBaseIncome(char);
     const colorComp = Object.values(gameData.zukan).filter(z => Object.keys(z.colors).length >= 9).length;
     const ivComp = Object.values(gameData.zukan).filter(z => z.maxIV === 100).length;
-    return base * (1 + colorComp * 0.1) * (1 + ivComp * 0.1) + gameData.logDays;
+    
+    // 計算式: 基本収益 * 色コンプボーナス * 個体値コンプボーナス + 累計ログイン日数
+    let total = base * (1 + colorComp * 0.1) * (1 + ivComp * 0.1) + gameData.logDays;
+    return total;
 }
 
 function getCharacter() {
     const today = new Date().toLocaleDateString();
-    const isFirstToday = localStorage.getItem('lastGetDate') !== today;
+    // 今日まだ一度もGETしていないならログインボーナス対象
+    const isFirstToday = gameData.lastGetDate !== today;
     const getCount = isFirstToday ? 2 : 1;
+    
     const maxSpace = 3 + gameData.storageLevel;
-
     if (gameData.characters.length + getCount > maxSpace) {
-        return alert("倉庫に空きが足りません！");
+        return alert("倉庫に空きが足りません！ (本日の初GETは2枠必要です)");
     }
 
     const wait = 3600000 * Math.pow(0.99, gameData.clockCount);
@@ -151,15 +156,15 @@ function getCharacter() {
     for(let i=0; i<getCount; i++) {
         const t = lotteryType();
         const c = lotteryColor();
-        const newChar = { id: Date.now()+i, type: t.type, color: c.name, iv: Math.floor(Math.random()*100)+1, baseValue: t.baseValue };
+        const newChar = { id: Date.now() + i, type: t.type, color: c.name, iv: Math.floor(Math.random()*100)+1, baseValue: t.baseValue };
         gameData.characters.push(newChar);
         updateZukan(newChar);
     }
     
     gameData.lastGetTime = Date.now();
-    localStorage.setItem('lastGetDate', today);
+    gameData.lastGetDate = today; // 今日GETしたことを記録
     save(); renderAll();
-    alert(getCount === 2 ? "ログインボーナス！2体獲得！" : "キャラクターを獲得しました！");
+    alert(getCount === 2 ? "ログインボーナス！本日最初のGETにより2体獲得しました！" : "キャラクターを獲得しました！");
 }
 
 function updateZukan(char) {
@@ -184,7 +189,8 @@ function renderStorage() {
         const isSet = c.id === gameData.activeCharId;
         return `<div class="card ${isSet?'active-set':''}">
             <span style="font-size:1.2rem; display:block; margin-bottom:5px;">${getColorEmoji(c.color)}</span>
-            <b>${c.type}</b><br>(${c.color})<br>個体値: ${c.iv}<br>収益: ${getBaseIncome(c).toFixed(1)}<br>
+            <b>${c.type}</b><br><small>(${c.color})</small><br>
+            個体値: ${c.iv}<br>基本収益: ${getBaseIncome(c).toFixed(1)}<br>
             <button class="action-btn" onclick="setActive(${c.id})">${isSet?'解除':'セット'}</button>
             <button class="action-btn" onclick="useSpray(${c.id})">スプレー</button>
             <button class="action-btn" onclick="delChar(${c.id})" style="color:red; border-color:red;">捨てる</button>
@@ -198,7 +204,7 @@ function getColorEmoji(colorName) {
 }
 
 function useSpray(id) {
-    if (gameData.sprayCount <= 0 || !confirm("スプレーを使用しますか？")) return;
+    if (gameData.sprayCount <= 0 || !confirm("カラースプレーを使用して色をランダムに変えますか？")) return;
     const char = gameData.characters.find(c => c.id === id);
     gameData.sprayCount--;
     char.color = lotteryColor().name;
@@ -210,15 +216,15 @@ function renderShop() {
     const sPrice = 1000 * Math.pow(2, gameData.storageLevel);
     list.innerHTML = `
         <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
-            <div style="text-align:left;"><b>倉庫拡張 (+1)</b><br>価格: ${sPrice}円</div>
+            <div style="text-align:left;"><b>倉庫拡張 (+1)</b><br><small>価格: ${sPrice.toLocaleString()}円</small></div>
             <button onclick="buy('s',${sPrice})">購入</button>
         </div>
         <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
-            <div style="text-align:left;"><b>カラースプレー</b><br>価格: 10,000円<br>所持: ${gameData.sprayCount}</div>
+            <div style="text-align:left;"><b>カラースプレー</b><br><small>価格: 10,000円 / 所持: ${gameData.sprayCount}</small></div>
             <button onclick="buy('p',10000)">購入</button>
         </div>
         <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
-            <div style="text-align:left;"><b>真実の時計</b><br>価格: 100,000,000円<br>所持: ${gameData.clockCount}</div>
+            <div style="text-align:left;"><b>真実の時計</b><br><small>価格: 1億円 / 所持: ${gameData.clockCount}</small></div>
             <button onclick="buy('c',100000000)">購入</button>
         </div>
     `;
@@ -234,9 +240,10 @@ function buy(type, price) {
 }
 
 function renderZukan() {
-    document.getElementById('zukan-list').innerHTML = Object.entries(gameData.zukan).map(([type, d]) => {
+    document.getElementById('zukan-list').innerHTML = config.characters.map(baseChar => {
+        const d = gameData.zukan[baseChar.type] || { colors: {}, maxIV: 0 };
         const cCount = Object.keys(d.colors).length;
-        return `<div class="card"><b>${type}</b><br>最高個体値: ${d.maxIV}<br>色: ${cCount}/9 ${cCount===9?'★':''} ${d.maxIV===100?'💎':''}</div>`;
+        return `<div class="card"><b>${baseChar.type}</b><br>最高個体値: ${d.maxIV}<br>色: ${cCount}/9 ${cCount===9?'★':''} ${d.maxIV===100?'💎':''}</div>`;
     }).join('');
 }
 
@@ -244,9 +251,13 @@ function gameLoop() {
     let inc = 0, name = "なし";
     if (gameData.activeCharId) {
         const char = gameData.characters.find(c => c.id === gameData.activeCharId);
-        if (char) { inc = getFullIncome(char); name = `${char.color}の${char.type}`; gameData.money += inc; }
+        if (char) { 
+            inc = getFullIncome(char); 
+            name = `${char.color}の${char.type}`; 
+            gameData.money += inc; 
+        }
     }
-    document.getElementById('money').innerText = Math.floor(gameData.money);
+    document.getElementById('money').innerText = Math.floor(gameData.money).toLocaleString();
     document.getElementById('income').innerText = inc.toFixed(1);
     document.getElementById('active-name').innerText = name;
     document.getElementById('log-days').innerText = gameData.logDays;
@@ -274,7 +285,7 @@ function switchTab(t) {
     document.getElementById('tab-'+t).classList.add('active');
 }
 function renderAll() { renderStorage(); renderShop(); renderZukan(); }
-function save() { localStorage.setItem('TheHours_Final_NoImg', JSON.stringify(gameData)); }
+function save() { localStorage.setItem('TheHours_Final_v5', JSON.stringify(gameData)); }
 init();
 </script>
 </body>
