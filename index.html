@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <link rel="manifest" href="manifest.json?v=6">
+    <link rel="manifest" href="manifest.json?v=7">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>The hours</title>
@@ -66,7 +66,7 @@
         <div id="shop-list" style="display:flex; flex-direction:column; gap:8px;"></div>
         <div class="backup-area">
             <p style="font-size:0.8rem; font-weight:bold; margin:0;">💾 データバックアップ</p>
-            <button class="action-btn" onclick="generateBackupCode()">バックアップコードを生成</button>
+            <button class="action-btn" onclick="generateBackupCode()">コードを生成</button>
             <textarea id="backup-text" readonly placeholder="ここにコードが生成されます"></textarea>
             <button class="action-btn" onclick="copyBackup()">コードをコピー</button>
             <hr>
@@ -147,7 +147,6 @@ function getBaseIncome(char) {
 
 function getFullIncome(char) {
     const base = getBaseIncome(char);
-    const z = gameData.zukan[char.type] || { colors: {}, maxIV: 0 };
     const colorComp = Object.values(gameData.zukan).filter(z => Object.keys(z.colors || {}).length >= 9).length;
     const ivComp = Object.values(gameData.zukan).filter(z => (z.maxIV || 0) >= 100).length;
     return base * (1 + colorComp * 0.1) * (1 + ivComp * 0.1) + (gameData.logDays || 0);
@@ -176,7 +175,7 @@ function getCharacter() {
     gameData.lastGetDate = today;
     autoSetBestCharacter();
     save(); renderAll();
-    alert(getCount === 2 ? "ログインボーナス！2体GETしました！" : "キャラクターを獲得しました！");
+    alert(getCount === 2 ? "2体GETしました！" : "1体GETしました！");
 }
 
 function renderStorage() {
@@ -196,6 +195,7 @@ function renderStorage() {
             <button class="lock-btn" onclick="toggleLock(${c.id})">${c.locked ? "🔒" : "🔓"}</button>
             <span style="font-size:1.5rem;">${getColorEmoji(c.color)}</span><br>
             <b>${c.type}</b><br>
+            個体値: ${c.iv}<br>
             収益: ${getBaseIncome(c).toFixed(1)}<br>
             <button class="action-btn" onclick="setActive(${c.id})">${isSet?'解除':'セット'}</button>
             ${!c.locked ? `<button class="action-btn" onclick="delChar(${c.id})" style="color:var(--danger); border-color:var(--danger);">捨てる</button>` : ''}
@@ -255,9 +255,7 @@ function renderZukan() {
         const d = gameData.zukan[type];
         const colorCount = Object.keys(d.colors || {}).length;
         const maxIV = d.maxIV || 0;
-        
         const colorComp = colorCount >= 9 ? "<br><span style='color:orange;'>色コンプ★</span>" : "";
-        // 表記を「MAX個体値発見★」に変更
         const ivComp = maxIV >= 100 ? "<br><span style='color:gold;'>MAX個体値発見★</span>" : "";
         
         return `<div class="card">
@@ -271,7 +269,7 @@ function renderZukan() {
 }
 
 function generateBackupCode() {
-    const code = btoa(unescape(encodeURIComponent(JSON.stringify(gameData)))); // 日本語対応のBase64
+    const code = btoa(unescape(encodeURIComponent(JSON.stringify(gameData))));
     document.getElementById('backup-text').value = code;
 }
 
@@ -280,7 +278,7 @@ function copyBackup() {
     if (!area.value) return alert("まずはコードを生成してください");
     area.select();
     document.execCommand('copy');
-    alert("コピーしました。大切に保管してください。");
+    alert("コピーしました");
 }
 
 function restoreData() {
@@ -288,11 +286,7 @@ function restoreData() {
     if (!code) return alert("コードを入力してください");
     try {
         const data = JSON.parse(decodeURIComponent(escape(atob(code))));
-        if (confirm("データを上書きして復旧しますか？")) {
-            gameData = data;
-            save();
-            location.reload();
-        }
+        if (confirm("復旧しますか？")) { gameData = data; save(); location.reload(); }
     } catch(e) { alert("無効なコードです"); }
 }
 
