@@ -43,28 +43,7 @@
     pointer-events: none;
 }
 #toast.show { opacity: 1; }
-    　/* 虹色に光るアニメーション */
-@keyframes rainbow-border {
-    0% { border-color: #ff0000; box-shadow: 0 0 8px #ff0000; }
-    20% { border-color: #ffff00; box-shadow: 0 0 8px #ffff00; }
-    40% { border-color: #00ff00; box-shadow: 0 0 8px #00ff00; }
-    60% { border-color: #00ffff; box-shadow: 0 0 8px #00ffff; }
-    80% { border-color: #0000ff; box-shadow: 0 0 8px #0000ff; }
-    100% { border-color: #ff00ff; box-shadow: 0 0 8px #ff00ff; }
-}
 
-/* 全色コンプ（縁が虹色） */
-/* クラスを繋げて書くことで、優先順位を極限まで上げます */
-.grid .card.comp-rainbow {
-    border: 3px solid !important;
-    animation: rainbow-border 3s linear infinite !important;
-    /* 背景を白く保つか、あるいは少しだけ明るくして虹色を際立たせる */
-    background: #fff !important; 
-}
-/* 個体値100（中が薄い黄色） */
-.iv100-bg {
-    background: #fff9c4 !important; /* 薄い黄色 */
-}
         /* 画面フラッシュ演出 */
 .flash-effect {
     position: fixed;
@@ -91,6 +70,22 @@
 }
 @keyframes fall {
     to { transform: translateY(100vh) rotate(360deg); }
+}
+
+/* コンプリートテキストのスタイル */
+.comp-text {
+    display: block;
+    color: #ff00ff; /* ピンク */
+    font-weight: bold;
+    font-size: 0.75rem;
+    margin-top: 2px;
+}
+.iv100-text {
+    display: block;
+    color: #f1c40f; /* 黄色（ゴールドに近い色） */
+    font-weight: bold;
+    font-size: 0.75rem;
+    margin-top: 2px;
 }
     </style>
 </head>
@@ -503,18 +498,15 @@ function renderZukan() {
         const isComp = colorCount >= 9; // 全9色
         const isMaxIV = (d.maxIV || 0) >= 100; // 個体値100
         
-        // ★追加：その種族を何体捨てて、どれだけ強化されているか
         const level = gameData.discardCount[type] || 0;
 
-        // クラスを決定
-        let cardClass = "card";
-        if (isComp) cardClass += " comp-rainbow";
-        if (isMaxIV) cardClass += " iv100-bg";
-
-        return `<div class="${cardClass}">
+        return `<div class="card">
             <b>${type}</b><br>
-            <small style="color:var(--accent);">強化Lv: ${level}</small><br> 色:${colorCount}/9<br>
+            <small style="color:var(--accent);">強化Lv: ${level}</small><br>
+            色:${colorCount}/9<br>
             最大個体値:${d.maxIV}
+            ${isComp ? '<span class="comp-text">全色コンプ★</span>' : ''}
+            ${isMaxIV ? '<span class="iv100-text">MAX個体値発見★</span>' : ''}
         </div>`;
     }).join('');
 }
