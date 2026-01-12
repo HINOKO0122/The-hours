@@ -210,10 +210,34 @@ function getColorEmoji(colorName) {
 function renderShop() {
     const list = document.getElementById('shop-list');
     const sPrice = 1000 * Math.pow(2, gameData.storageLevel || 0);
+    const clockPrice = 100000000; // 1億円
+    
     list.innerHTML = `
-        <div class="card">倉庫拡張 (+1): ${sPrice.toLocaleString()}円 <button onclick="buy('s',${sPrice})">購入</button></div>
-        <div class="card">カラースプレー: 10,000円 <button onclick="buy('p',10000)">購入</button></div>
-        <div class="card">真実の時計: 1億円 <button onclick="buy('c',100000000)">購入</button></div>
+        <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="text-align:left;">
+                <b>倉庫拡張 (+1)</b><br>
+                <small>${sPrice.toLocaleString()}円 / 現在の最大: ${3 + (gameData.storageLevel || 0)}体</small>
+            </div>
+            <button onclick="buy('s',${sPrice})">購入</button>
+        </div>
+        
+        <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="text-align:left;">
+                <b>カラースプレー</b><br>
+                <small style="color: #666;">使用したキャラの色がランダムで変わる</small><br>
+                <small>10,000円 / 所持: ${gameData.sprayCount || 0}</small>
+            </div>
+            <button onclick="buy('p',10000)">購入</button>
+        </div>
+        
+        <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="text-align:left;">
+                <b>真実の時計</b><br>
+                <small style="color: #666;">クールタイム（1時間）が所持数に応じて短縮される</small><br>
+                <small>${clockPrice.toLocaleString()}円 / 所持: ${gameData.clockCount || 0}</small>
+            </div>
+            <button onclick="buy('c',${clockPrice})">購入</button>
+        </div>
     `;
 }
 
