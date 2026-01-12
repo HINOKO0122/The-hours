@@ -254,12 +254,16 @@ function renderZukan() {
     zList.innerHTML = discovered.map(type => {
         const d = gameData.zukan[type];
         const colorCount = Object.keys(d.colors || {}).length;
+        const maxIV = d.maxIV || 0;
+        
         const colorComp = colorCount >= 9 ? "<br><span style='color:orange;'>色コンプ★</span>" : "";
-        const ivComp = (d.maxIV || 0) >= 100 ? "<br><span style='color:gold;'>IVコンプ★</span>" : "";
+        // 表記を「MAX個体値発見★」に変更
+        const ivComp = maxIV >= 100 ? "<br><span style='color:gold;'>MAX個体値発見★</span>" : "";
         
         return `<div class="card">
             <b>${type}</b><br>
-            色: ${colorCount}/9
+            色: ${colorCount}/9<br>
+            最大個体値: ${maxIV}
             ${colorComp}
             ${ivComp}
         </div>`;
