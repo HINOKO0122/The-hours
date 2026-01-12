@@ -2,50 +2,42 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <title>The hours</title>
     <style>
-        :root { --main-color: #2c3e50; --accent-color: #2980b9; --bg-color: #f8f9fa; }
+        :root { --main: #2c3e50; --accent: #2980b9; --bg: #f4f7f6; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Yu Gothic", sans-serif; background: var(--bg-color); color: var(--main-color); margin: 0; padding: 10px; }
-        .container { max-width: 600px; margin: auto; background: white; padding: 15px; border-radius: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-        h1 { text-align: center; font-size: 1.5rem; margin: 10px 0; letter-spacing: 2px; }
-        
-        .status-bar { display: grid; grid-template-columns: 1fr 1fr; background: #eee; padding: 12px; border-radius: 12px; margin-bottom: 15px; font-size: 0.9rem; gap: 5px; }
-        .status-full { grid-column: 1 / 3; border-top: 1px solid #ccc; pt: 5px; margin-top: 5px; text-align: center; }
-
-        .main-btn { width: 100%; padding: 18px; font-size: 1.1rem; cursor: pointer; background: var(--accent-color); color: white; border: none; border-radius: 15px; font-weight: bold; box-shadow: 0 4px 0 #1c5982; transition: 0.1s; }
-        .main-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #1c5982; }
-        .main-btn:disabled { background: #ccc; box-shadow: none; transform: none; }
-
-        .tabs { display: flex; justify-content: space-around; margin: 15px 0; background: #fff; border-radius: 10px; overflow: hidden; border: 1px solid #eee; }
-        .tab-btn { flex: 1; padding: 12px; border: none; background: none; font-size: 0.9rem; color: #7f8c8d; }
-        .tab-btn.active { background: var(--accent-color); color: white; font-weight: bold; }
-
+        body { font-family: sans-serif; background: var(--bg); margin: 0; padding: 10px; color: var(--main); }
+        .container { max-width: 500px; margin: auto; background: #fff; padding: 15px; border-radius: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .status { display: grid; grid-template-columns: 1fr 1fr; background: #eee; padding: 10px; border-radius: 12px; margin-bottom: 10px; font-size: 0.85rem; gap: 5px; }
+        .status-full { grid-column: 1/3; border-top: 1px solid #ccc; padding-top: 5px; text-align: center; }
+        .main-btn { width: 100%; padding: 15px; background: var(--accent); color: #fff; border: none; border-radius: 15px; font-weight: bold; cursor: pointer; }
+        .main-btn:disabled { background: #ccc; }
+        .tabs { display: flex; gap: 5px; margin: 10px 0; }
+        .tab-btn { flex: 1; padding: 10px; border: none; background: #eee; border-radius: 8px; font-size: 0.8rem; }
+        .tab-btn.active { background: var(--accent); color: #fff; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .card { border: 1px solid #eee; padding: 12px; border-radius: 12px; text-align: center; position: relative; background: #fff; font-size: 0.85rem; }
+        .card { border: 1px solid #eee; padding: 10px; border-radius: 12px; text-align: center; font-size: 0.75rem; background: #fff; }
         .card.active-set { border: 2px solid #27ae60; background: #f0fff4; }
-        
-        button.action-btn { width: 100%; margin-top: 5px; padding: 6px; border-radius: 8px; border: 1px solid #ddd; background: #fff; font-size: 0.8rem; }
-        
-        #timer { text-align: center; color: #e74c3c; font-weight: bold; font-size: 0.9rem; margin-bottom: 15px; height: 1.2em; }
-        .storage-info { background: #e3f2fd; padding: 8px; border-radius: 10px; margin-bottom: 10px; text-align: center; font-size: 0.85rem; }
+        .char-img { width: 60px; height: 60px; object-fit: contain; margin-bottom: 5px; }
         .hidden { display: none; }
+        #timer { text-align: center; font-weight: bold; font-size: 0.9rem; color: #e74c3c; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h1>The hours</h1>
-    <div class="status-bar">
+    <div class="status">
         <div>金貨: <span id="money">0</span></div>
-        <div>収益: <span id="income">0</span>/秒</div>
+        <div>毎秒: <span id="income">0</span></div>
         <div class="status-full">セット中: <span id="active-name">なし</span></div>
+        <div class="status-full" id="login-info">累計ログイン: <span id="log-days">0</span>日</div>
     </div>
 
-    <div id="timer">読込中...</div>
+    <div id="timer">確認中...</div>
     <button id="get-btn" class="main-btn" onclick="getCharacter()">GETする</button>
 
     <div class="tabs">
@@ -55,12 +47,19 @@
     </div>
 
     <div id="storage-sec">
-        <div class="storage-info">倉庫の空き: <span id="storage-free">0</span> / <span id="storage-max">0</span> 枠</div>
+        <div style="text-align:right; margin-bottom:10px; font-size:0.8rem;">
+            空き: <span id="storage-usage">0/0</span><br>
+            並び替え: <select id="sort-select" onchange="renderStorage()">
+                <option value="new">新しい順</option>
+                <option value="type">キャラ順</option>
+                <option value="income">収益順</option>
+            </select>
+        </div>
         <div id="storage-grid" class="grid"></div>
     </div>
 
     <div id="shop-sec" class="hidden">
-        <div id="shop-list" style="display:flex; flex-direction:column; gap:10px;"></div>
+        <div id="shop-list" style="display:flex; flex-direction:column; gap:8px;"></div>
     </div>
 
     <div id="zukan-sec" class="hidden">
@@ -70,161 +69,198 @@
 
 <script>
 let config = null;
-let gameData = { money: 0, characters: [], activeCharId: null, lastGetTime: 0, lastUpdate: Date.now(), zukan: {}, storageLevel: 0, luckLevel: 0, sprayCount: 0 };
+let gameData = {
+    money: 0, characters: [], activeCharId: null, lastGetTime: 0, lastUpdate: Date.now(),
+    zukan: {}, storageLevel: 0, sprayCount: 0, clockCount: 0, logDays: 0, lastLogDate: ""
+};
 
 async function init() {
     const res = await fetch('config.json');
     config = await res.json();
-    const saved = localStorage.getItem('TheHours_v4');
-    if (saved) gameData = JSON.parse(saved);
+    const saved = localStorage.getItem('TheHours_Final');
+    if (saved) {
+        gameData = JSON.parse(saved);
+        calcOffline();
+    }
+    checkLogin();
     renderAll();
     setInterval(gameLoop, 1000);
+    // Service Worker 登録 (PWA)
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
 }
 
-// キャラクターの重み付き抽選 (スライム50%等)
-function lotteryType() {
-    const totalWeight = config.characters.reduce((sum, c) => sum + c.weight, 0);
-    let r = Math.random() * totalWeight;
-    for (const c of config.characters) {
-        if (r < c.weight) return c;
-        r -= c.weight;
+function checkLogin() {
+    const today = new Date().toLocaleDateString();
+    if (gameData.lastLogDate !== today) {
+        gameData.logDays++;
+        gameData.lastLogDate = today;
+        save();
     }
+}
+
+function calcOffline() {
+    if (!gameData.activeCharId) return;
+    const now = Date.now();
+    const diff = Math.floor((now - gameData.lastUpdate) / 1000);
+    if (diff > 0) {
+        const char = gameData.characters.find(c => c.id === gameData.activeCharId);
+        if (char) gameData.money += getFullIncome(char) * diff;
+    }
+}
+
+function lotteryType() {
+    const total = config.characters.reduce((s, c) => s + c.weight, 0);
+    let r = Math.random() * total;
+    for (const c of config.characters) { if (r < c.weight) return c; r -= c.weight; }
     return config.characters[0];
 }
 
 function lotteryColor() {
-    let r = Math.random(), cumulative = 0;
-    for (const c of config.colors) {
-        cumulative += c.prob;
-        if (r < cumulative) return c;
-    }
+    let r = Math.random(), cum = 0;
+    for (const c of config.colors) { cum += c.prob; if (r < cum) return c; }
     return config.colors[0];
 }
 
-function calculateIncome(char) {
-    const colorData = config.colors.find(c => c.name === char.color);
-    let baseIncome = char.baseValue * (char.individualValue / 100) * colorData.bonus;
-    let compCount = Object.values(gameData.zukan).filter(z => Object.keys(z.colors).length >= 9).length;
-    return baseIncome * (1 + (0.1 * compCount));
+// 倉庫用収益 (固有値 × 個体値/100 × 色)
+function getBaseIncome(char) {
+    const cData = config.colors.find(c => c.name === char.color);
+    return char.baseValue * (char.iv / 100) * cData.bonus;
+}
+
+// セット中収益 (ベース × 色コンプ × 個体値コンプ + ログイン日数)
+function getFullIncome(char) {
+    const base = getBaseIncome(char);
+    const colorComp = Object.values(gameData.zukan).filter(z => Object.keys(z.colors).length >= 9).length;
+    const ivComp = Object.values(gameData.zukan).filter(z => z.maxIV === 100).length;
+    return base * (1 + colorComp * 0.1) * (1 + ivComp * 0.1) + gameData.logDays;
 }
 
 function getCharacter() {
-    const maxSpace = Math.pow(2, gameData.storageLevel);
-    if (gameData.characters.length >= maxSpace) return alert("倉庫が満杯です");
-    if (Date.now() - gameData.lastGetTime < 3600000) return;
+    const today = new Date().toLocaleDateString();
+    const isFirstToday = localStorage.getItem('lastGetDate') !== today;
+    const getCount = isFirstToday ? 2 : 1;
+    const maxSpace = 3 + gameData.storageLevel;
 
-    const typeData = lotteryType();
-    const colorObj = lotteryColor();
-    const minIV = 1 + gameData.luckLevel;
-    let iv = Math.min(100, Math.floor(Math.random() * (101 - minIV)) + minIV);
+    if (gameData.characters.length + getCount > maxSpace) {
+        return alert("倉庫に空きが足りません！");
+    }
 
-    gameData.characters.push({ id: Date.now(), type: typeData.type, color: colorObj.name, individualValue: iv, baseValue: typeData.baseValue });
+    const wait = 3600000 * Math.pow(0.99, gameData.clockCount);
+    if (Date.now() - gameData.lastGetTime < wait) return;
+
+    for(let i=0; i<getCount; i++) {
+        const t = lotteryType();
+        const c = lotteryColor();
+        const newChar = { id: Date.now()+i, type: t.type, color: c.name, iv: Math.floor(Math.random()*100)+1, baseValue: t.baseValue };
+        gameData.characters.push(newChar);
+        updateZukan(newChar);
+    }
+    
     gameData.lastGetTime = Date.now();
-    updateZukan(gameData.characters[gameData.characters.length-1]);
+    localStorage.setItem('lastGetDate', today);
     save(); renderAll();
-    alert(`【獲得】${colorObj.name}の${typeData.type}\n個体値: ${iv}`);
+    alert(getCount === 2 ? "ログインボーナス！2体獲得しました！" : "キャラクターを獲得しました！");
 }
 
 function updateZukan(char) {
     if (!gameData.zukan[char.type]) gameData.zukan[char.type] = { colors: {}, maxIV: 0 };
     gameData.zukan[char.type].colors[char.color] = true;
-    gameData.zukan[char.type].maxIV = Math.max(gameData.zukan[char.type].maxIV, char.individualValue);
-}
-
-function useSpray(charId) {
-    if (gameData.sprayCount <= 0 || !confirm("カラースプレー(ランダム変更)を使用しますか？")) return;
-    const char = gameData.characters.find(c => c.id === charId);
-    gameData.sprayCount--;
-    const newColor = lotteryColor();
-    char.color = newColor.name;
-    updateZukan(char);
-    save(); renderAll();
-}
-
-function renderShop() {
-    const list = document.getElementById('shop-list');
-    const sPrice = Math.pow(2, gameData.storageLevel) * 100;
-    const lPrice = Math.pow(2, gameData.luckLevel);
-    list.innerHTML = `
-        <div class="card" style="display:flex; justify-content:space-between; align-items:center; text-align:left;">
-            <div><b>倉庫拡張</b><br><small>${sPrice}円 / 容量2倍</small></div>
-            <button onclick="buyItem('storage', ${sPrice})">購入</button>
-        </div>
-        <div class="card" style="display:flex; justify-content:space-between; align-items:center; text-align:left;">
-            <div><b>幸運のお守り</b><br><small>${lPrice}円 / 最小個体値+1</small></div>
-            <button onclick="buyItem('luck', ${lPrice})">購入</button>
-        </div>
-        <div class="card" style="display:flex; justify-content:space-between; align-items:center; text-align:left;">
-            <div><b>カラースプレー</b><br><small>500円 / 色をランダム変身</small></div>
-            <button onclick="buyItem('spray', 500)">購入 (${gameData.sprayCount})</button>
-        </div>`;
-}
-
-function buyItem(type, price) {
-    if (gameData.money < price) return alert("資金不足");
-    gameData.money -= price;
-    if (type === 'storage') gameData.storageLevel++;
-    if (type === 'luck') gameData.luckLevel++;
-    if (type === 'spray') gameData.sprayCount++;
-    save(); renderAll();
+    gameData.zukan[char.type].maxIV = Math.max(gameData.zukan[char.type].maxIV, char.iv);
 }
 
 function renderStorage() {
     const grid = document.getElementById('storage-grid');
-    const maxSpace = Math.pow(2, gameData.storageLevel);
-    document.getElementById('storage-free').innerText = maxSpace - gameData.characters.length;
-    document.getElementById('storage-max').innerText = maxSpace;
-    grid.innerHTML = gameData.characters.map(char => {
-        const isSet = char.id === gameData.activeCharId;
-        return `<div class="card ${isSet ? 'active-set' : ''}">
-            <b>${char.type}</b><br><small>${char.color}</small><br>
-            個体値: ${char.individualValue}<br>
-            <button class="action-btn" onclick="setActive(${char.id})">${isSet ? '解除' : 'セット'}</button>
-            <button class="action-btn" onclick="useSpray(${char.id})">スプレー</button>
-            <button class="action-btn" onclick="deleteChar(${char.id})" style="color:red">捨てる</button>
+    const sort = document.getElementById('sort-select').value;
+    let list = [...gameData.characters];
+
+    if (sort === 'type') list.sort((a,b) => b.baseValue - a.baseValue);
+    else if (sort === 'income') list.sort((a,b) => getBaseIncome(b) - getBaseIncome(a));
+    else list.reverse();
+
+    const maxSpace = 3 + gameData.storageLevel;
+    document.getElementById('storage-usage').innerText = `${gameData.characters.length}/${maxSpace}`;
+
+    grid.innerHTML = list.map(c => {
+        const isSet = c.id === gameData.activeCharId;
+        return `<div class="card ${isSet?'active-set':''}">
+            <img src="img/${c.type}_${c.color}.png" class="char-img" onerror="this.src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII='">
+            <br><b>${c.type}</b>(${c.color})<br>個体値: ${c.iv}<br>収益: ${getBaseIncome(c).toFixed(1)}<br>
+            <button onclick="setActive(${c.id})">${isSet?'解除':'セット'}</button>
+            <button onclick="useSpray(${c.id})">スプレー</button>
+            <button onclick="delChar(${c.id})">捨てる</button>
         </div>`;
     }).join('');
 }
 
+function useSpray(id) {
+    if (gameData.sprayCount <= 0 || !confirm("カラースプレーを使用して色をランダムに変えますか？")) return;
+    const char = gameData.characters.find(c => c.id === id);
+    gameData.sprayCount--;
+    char.color = lotteryColor().name;
+    updateZukan(char); save(); renderAll();
+}
+
+function renderShop() {
+    const list = document.getElementById('shop-list');
+    const sPrice = 1000 * Math.pow(2, gameData.storageLevel);
+    list.innerHTML = `
+        <div class="card">倉庫拡張: ${sPrice}円<br><button onclick="buy('s',${sPrice})">購入</button></div>
+        <div class="card">カラースプレー: 10,000円 (所持:${gameData.sprayCount})<br><button onclick="buy('p',10000)">購入</button></div>
+        <div class="card">真実の時計: 100,000,000円 (所持:${gameData.clockCount})<br><button onclick="buy('c',100000000)">購入</button></div>
+    `;
+}
+
+function buy(type, price) {
+    if (gameData.money < price) return alert("お金が足りません");
+    gameData.money -= price;
+    if(type==='s') gameData.storageLevel++;
+    if(type==='p') gameData.sprayCount++;
+    if(type==='c') gameData.clockCount++;
+    save(); renderAll();
+}
+
 function renderZukan() {
-    document.getElementById('zukan-list').innerHTML = Object.entries(gameData.zukan).map(([type, d]) => `
-        <div class="card"><b>${type}</b><br>最高個体値: ${d.maxIV}<br>色: ${Object.keys(d.colors).length}/9</div>
-    `).join('');
+    document.getElementById('zukan-list').innerHTML = Object.entries(gameData.zukan).map(([type, d]) => {
+        const cCount = Object.keys(d.colors).length;
+        return `<div class="card"><b>${type}</b><br>最高個体値: ${d.maxIV}<br>色: ${cCount}/9 ${cCount===9?'★':''} ${d.maxIV===100?'💎':''}</div>`;
+    }).join('');
 }
 
 function gameLoop() {
-    let income = 0, name = "なし";
+    let inc = 0, name = "なし";
     if (gameData.activeCharId) {
         const char = gameData.characters.find(c => c.id === gameData.activeCharId);
-        if (char) { income = calculateIncome(char); name = `${char.color}${char.type}`; gameData.money += income; }
+        if (char) { inc = getFullIncome(char); name = `${char.color}の${char.type}`; gameData.money += inc; }
     }
     document.getElementById('money').innerText = Math.floor(gameData.money);
-    document.getElementById('income').innerText = income.toFixed(1);
+    document.getElementById('income').innerText = inc.toFixed(1);
     document.getElementById('active-name').innerText = name;
-    
-    const rem = 3600000 - (Date.now() - gameData.lastGetTime);
+    document.getElementById('log-days').innerText = gameData.logDays;
+
+    const wait = 3600000 * Math.pow(0.99, gameData.clockCount);
+    const rem = wait - (Date.now() - gameData.lastGetTime);
     const btn = document.getElementById('get-btn');
     if (rem > 0) {
-        document.getElementById('timer').innerText = `次まで ${Math.floor(rem/60000)}分${Math.floor((rem%60000)/1000)}秒`;
+        const m = Math.floor(rem/60000), s = Math.floor((rem%60000)/1000);
+        document.getElementById('timer').innerText = `次まで ${m}分 ${s}秒`;
         btn.disabled = true;
     } else {
-        document.getElementById('timer').innerText = "獲得可能です！";
+        document.getElementById('timer').innerText = "獲得可能！";
         btn.disabled = false;
     }
     gameData.lastUpdate = Date.now(); save();
 }
 
-function setActive(id) { gameData.activeCharId = (gameData.activeCharId === id) ? null : id; renderAll(); }
-function deleteChar(id) { if(confirm("捨てますか？")) { gameData.characters = gameData.characters.filter(c => c.id !== id); if(gameData.activeCharId === id) gameData.activeCharId = null; renderAll(); } }
+function setActive(id) { gameData.activeCharId = (gameData.activeCharId===id)? null:id; renderAll(); }
+function delChar(id) { if(confirm("捨てますか？")){ gameData.characters=gameData.characters.filter(c=>c.id!==id); if(gameData.activeCharId===id)gameData.activeCharId=null; renderAll(); } }
 function switchTab(t) {
     ['storage','shop','zukan'].forEach(s => document.getElementById(s+'-sec').classList.add('hidden'));
     document.getElementById(t+'-sec').classList.remove('hidden');
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('tab-'+t).classList.add('active');
-    renderAll();
 }
 function renderAll() { renderStorage(); renderShop(); renderZukan(); }
-function save() { localStorage.setItem('TheHours_v4', JSON.stringify(gameData)); }
+function save() { localStorage.setItem('TheHours_Final', JSON.stringify(gameData)); }
 init();
 </script>
 </body>
