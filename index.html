@@ -184,9 +184,18 @@ function getCharacter() {
     const isFirstToday = gameData.lastGetDate !== today;
     const getCount = isFirstToday ? 2 : 1;
     const maxSpace = 3 + (gameData.storageLevel || 0);
-    if (gameData.characters.length + getCount > maxSpace) return showToast("倉庫がいっぱいです");
+
+    // 1. まず「タイマー」をチェック（時間が来てなければ何もしない）
     const wait = 3600000 * Math.pow(0.99, gameData.clockCount || 0);
     if (Date.now() - (gameData.lastGetTime || 0) < wait) return;
+
+    // 2. 次に「倉庫」をチェック（ここが重要！）
+    if (gameData.characters.length + getCount > maxSpace) {
+        showToast("倉庫がいっぱいで受け取れません！");
+        return; // ここで終わらせることで、タイマー（lastGetTime）を更新させない
+    }
+
+    // 3. 倉庫に空きがある場合のみ、実際にモンスターを追加してタイマーを更新する
     for(let i=0; i<getCount; i++) {
         let fate = gameData.nextFateList.shift();
         if (!fate) fate = generateSingleFate();
@@ -194,12 +203,14 @@ function getCharacter() {
         gameData.characters.push(newChar);
         updateZukan(newChar);
     }
+    
     fillFate();
-    gameData.lastGetTime = Date.now();
+    gameData.lastGetTime = Date.now(); // ここで初めて「受け取った」ことにする
     gameData.lastGetDate = today;
     autoSetBestCharacter();
-    save(); renderAll();
-    showToast(getCount === 2 ? "今日の初GETボーナスで2体手に入れた！" : "モンスターをゲットした！");
+    save(); 
+    renderAll();
+    showToast(getCount === 2 ? "ボーナス含め2体GET！" : "モンスターをGETした！");
 }
 
 function renderStorage() {
