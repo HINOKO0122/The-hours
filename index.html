@@ -43,9 +43,57 @@
     pointer-events: none;
 }
 #toast.show { opacity: 1; }
+    　/* 虹色に光るアニメーション */
+@keyframes rainbow-border {
+    0% { border-color: #ff0000; }
+    20% { border-color: #ffff00; }
+    40% { border-color: #00ff00; }
+    60% { border-color: #00ffff; }
+    80% { border-color: #0000ff; }
+    100% { border-color: #ff00ff; }
+}
+
+/* 全色コンプ（縁が虹色） */
+.comp-rainbow {
+    border: 3px solid;
+    animation: rainbow-border 3s linear infinite;
+}
+
+/* 個体値100（中が薄い黄色） */
+.iv100-bg {
+    background: #fff9c4 !important; /* 薄い黄色 */
+}
+        /* 画面フラッシュ演出 */
+.flash-effect {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: white;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 2000;
+}
+.flash-anim { animation: flash-screen 0.5s ease-out; }
+@keyframes flash-screen {
+    0% { opacity: 0.8; }
+    100% { opacity: 0; }
+}
+
+/* 紙吹雪の粒 */
+.confetti {
+    position: fixed;
+    width: 10px; height: 10px;
+    background: #f00;
+    z-index: 1500;
+    pointer-events: none;
+    animation: fall linear forwards;
+}
+@keyframes fall {
+    to { transform: translateY(100vh) rotate(360deg); }
+}
     </style>
 </head>
 <body>
+<div id="flash-overlay" class="flash-effect"></div>
 <div id="toast"></div>
 <div class="container">
     <h1>The hours</h1>
@@ -196,13 +244,21 @@ function getCharacter() {
     }
 
     // 3. 倉庫に空きがある場合のみ、実際にモンスターを追加してタイマーを更新する
-    for(let i=0; i<getCount; i++) {
-        let fate = gameData.nextFateList.shift();
-        if (!fate) fate = generateSingleFate();
-        const newChar = { id: Date.now() + i, ...fate, locked: false };
-        gameData.characters.push(newChar);
-        updateZukan(newChar);
+    // getCharacter 関数内のモンスター追加ループの中を修正
+for(let i=0; i<getCount; i++) {
+    let fate = gameData.nextFateList.shift();
+    if (!fate) fate = generateSingleFate();
+    const newChar = { id: Date.now() + i, ...fate, locked: false };
+    gameData.characters.push(newChar);
+    updateZukan(newChar);
+
+    // --- ここにレア演出判定を追加 ---
+    const kakuseiList = ["覚醒・龍", "覚醒・鳳凰", "覚醒・麒麟", "覚醒・霊亀"]; // configに合わせて調整してください
+    if (newChar.iv === 100 || kakuseiList.includes(newChar.type)) {
+        specialEffect(`${newChar.type} (個体値:${newChar.iv}) を引き当てた！！`);
     }
+    // ----------------------------
+}
     
     fillFate();
     gameData.lastGetTime = Date.now(); // ここで初めて「受け取った」ことにする
@@ -328,6 +384,29 @@ function gameLoop() {
 }
 
 function save() { localStorage.setItem(SAVE_KEY, JSON.stringify(gameData)); }
+function specialEffect(msg) {
+    // 1. フラッシュ
+    const flash = document.getElementById('flash-overlay');
+    flash.classList.remove('flash-anim');
+    void flash.offsetWidth; // リロード用
+    flash.classList.add('flash-anim');
+
+    // 2. 紙吹雪を30個降らせる
+    for (let i = 0; i < 30; i++) {
+        const c = document.createElement('div');
+        c.className = 'confetti';
+        c.style.left = Math.random() * 100 + 'vw';
+        c.style.top = '-10px';
+        c.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
+        c.style.duration = (Math.random() * 2 + 1) + 's';
+        c.style.animationDuration = (Math.random() * 2 + 1) + 's';
+        document.body.appendChild(c);
+        setTimeout(() => c.remove(), 3000);
+    }
+    
+    // 3. メッセージ表示（目立つように少し遅らせる）
+    setTimeout(() => alert("🎉祝！ " + msg), 100);
+}
 // ふわっと出る通知関数
 function showToast(msg) {
     const toast = document.getElementById('toast');
@@ -376,7 +455,19 @@ function renderZukan() {
     zList.innerHTML = Object.keys(gameData.zukan || {}).map(type => {
         const d = gameData.zukan[type];
         const colorCount = Object.keys(d.colors || {}).length;
-        return `<div class="card"><b>${type}</b><br>色:${colorCount}/9<br>最大個体値:${d.maxIV}</div>`;
+        const isComp = colorCount >= 9; // 全9色
+        const isMaxIV = (d.maxIV || 0) >= 100; // 個体値100
+
+        // クラスを決定
+        let cardClass = "card";
+        if (isComp) cardClass += " comp-rainbow";
+        if (isMaxIV) cardClass += " iv100-bg";
+
+        return `<div class="${cardClass}">
+            <b>${type}</b><br>
+            色:${colorCount}/9<br>
+            最大個体値:${d.maxIV}
+        </div>`;
     }).join('');
 }
 function generateBackupCode() { document.getElementById('backup-text').value = btoa(unescape(encodeURIComponent(JSON.stringify(gameData)))); }
