@@ -54,11 +54,11 @@
 }
 
 /* 全色コンプ（縁が虹色） */
-.comp-rainbow {
-    border-width: 3px !important; /* 枠を太くする */
-    border-style: solid !important;
+/* クラスを繋げて書くことで、優先順位を極限まで上げます */
+.grid .card.comp-rainbow {
+    border: 3px solid !important;
     animation: rainbow-border 3s linear infinite !important;
-    z-index: 1; /* 他の枠より優先 */
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.5); /* ついでに少し光らせる */
 }
 
 /* 個体値100（中が薄い黄色） */
