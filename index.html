@@ -55,8 +55,10 @@
 
 /* 全色コンプ（縁が虹色） */
 .comp-rainbow {
-    border: 3px solid;
-    animation: rainbow-border 3s linear infinite;
+    border-width: 3px !important; /* 枠を太くする */
+    border-style: solid !important;
+    animation: rainbow-border 3s linear infinite !important;
+    z-index: 1; /* 他の枠より優先 */
 }
 
 /* 個体値100（中が薄い黄色） */
