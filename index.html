@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>The hours</title>
     <style>
         :root { --main: #2c3e50; --accent: #2980b9; --bg: #f4f7f6; }
@@ -24,6 +25,7 @@
         .hidden { display: none; }
         #timer { text-align: center; font-weight: bold; font-size: 0.9rem; color: #e74c3c; margin-bottom: 10px; }
         .action-btn { width: 100%; margin-top: 5px; padding: 5px; border-radius: 5px; border: 1px solid #ccc; background: #fff; font-size: 0.75rem; }
+        .guide { margin-top: 20px; padding: 12px; background: #e8f4fd; border-radius: 10px; font-size: 0.75rem; color: #2980b9; line-height: 1.5; border: 1px solid #b3d7ef; }
     </style>
 </head>
 <body>
@@ -32,7 +34,7 @@
     <h1>The hours</h1>
     <div class="status">
         <div>金貨: <span id="money">0</span></div>
-        <div>現在の収益: <span id="income">0</span>/s</div>
+        <div>収益: <span id="income">0</span>/s</div>
         <div class="status-full">セット中: <span id="active-name">なし</span></div>
         <div class="status-full">累計ログイン: <span id="log-days">0</span>日</div>
     </div>
@@ -65,6 +67,12 @@
     <div id="zukan-sec" class="hidden">
         <div id="zukan-list" class="grid"></div>
     </div>
+
+    <div class="guide">
+        <b>【アプリとして使う方法】</b><br>
+        ・iPhone: Safariの共有(↑)から「ホーム画面に追加」<br>
+        ・Android: Chromeの(⋮)から「アプリをインストール」
+    </div>
 </div>
 
 <script>
@@ -80,7 +88,7 @@ async function init() {
         config = await res.json();
     } catch(e) { alert("config.jsonが見つかりません"); return; }
     
-    const saved = localStorage.getItem('TheHours_Final_v5');
+    const saved = localStorage.getItem('TheHours_v7');
     if (saved) {
         gameData = JSON.parse(saved);
         calcOffline();
@@ -122,32 +130,26 @@ function lotteryColor() {
     return config.colors[0];
 }
 
-// 倉庫表示用（基本収益）
 function getBaseIncome(char) {
     const cData = config.colors.find(c => c.name === char.color);
     return char.baseValue * (char.iv / 100) * cData.bonus;
 }
 
-// 稼働用（全てのボーナス込）
 function getFullIncome(char) {
     const base = getBaseIncome(char);
     const colorComp = Object.values(gameData.zukan).filter(z => Object.keys(z.colors).length >= 9).length;
     const ivComp = Object.values(gameData.zukan).filter(z => z.maxIV === 100).length;
-    
-    // 計算式: 基本収益 * 色コンプボーナス * 個体値コンプボーナス + 累計ログイン日数
-    let total = base * (1 + colorComp * 0.1) * (1 + ivComp * 0.1) + gameData.logDays;
-    return total;
+    return base * (1 + colorComp * 0.1) * (1 + ivComp * 0.1) + gameData.logDays;
 }
 
 function getCharacter() {
     const today = new Date().toLocaleDateString();
-    // 今日まだ一度もGETしていないならログインボーナス対象
     const isFirstToday = gameData.lastGetDate !== today;
     const getCount = isFirstToday ? 2 : 1;
-    
     const maxSpace = 3 + gameData.storageLevel;
+
     if (gameData.characters.length + getCount > maxSpace) {
-        return alert("倉庫に空きが足りません！ (本日の初GETは2枠必要です)");
+        return alert("倉庫に空きが足りません！");
     }
 
     const wait = 3600000 * Math.pow(0.99, gameData.clockCount);
@@ -162,15 +164,20 @@ function getCharacter() {
     }
     
     gameData.lastGetTime = Date.now();
-    gameData.lastGetDate = today; // 今日GETしたことを記録
+    gameData.lastGetDate = today;
     save(); renderAll();
-    alert(getCount === 2 ? "ログインボーナス！本日最初のGETにより2体獲得しました！" : "キャラクターを獲得しました！");
+    alert(getCount === 2 ? "ログインボーナス！本日初の獲得で2体GETしました！" : "キャラクターを獲得しました！");
 }
 
 function updateZukan(char) {
     if (!gameData.zukan[char.type]) gameData.zukan[char.type] = { colors: {}, maxIV: 0 };
     gameData.zukan[char.type].colors[char.color] = true;
     gameData.zukan[char.type].maxIV = Math.max(gameData.zukan[char.type].maxIV, char.iv);
+}
+
+function getColorEmoji(colorName) {
+    const emojis = {"赤":"🩷","橙":"🧡","黄":"💛","緑":"💚","青":"🩵","藍":"💙","紫":"💜","銀":"🥈","金":"👑"};
+    return emojis[colorName] || "⚪";
 }
 
 function renderStorage() {
@@ -188,9 +195,9 @@ function renderStorage() {
     grid.innerHTML = list.map(c => {
         const isSet = c.id === gameData.activeCharId;
         return `<div class="card ${isSet?'active-set':''}">
-            <span style="font-size:1.2rem; display:block; margin-bottom:5px;">${getColorEmoji(c.color)}</span>
+            <span style="font-size:1.5rem;">${getColorEmoji(c.color)}</span><br>
             <b>${c.type}</b><br><small>(${c.color})</small><br>
-            個体値: ${c.iv}<br>基本収益: ${getBaseIncome(c).toFixed(1)}<br>
+            個体値: ${c.iv}<br>収益: ${getBaseIncome(c).toFixed(1)}<br>
             <button class="action-btn" onclick="setActive(${c.id})">${isSet?'解除':'セット'}</button>
             <button class="action-btn" onclick="useSpray(${c.id})">スプレー</button>
             <button class="action-btn" onclick="delChar(${c.id})" style="color:red; border-color:red;">捨てる</button>
@@ -198,13 +205,8 @@ function renderStorage() {
     }).join('');
 }
 
-function getColorEmoji(colorName) {
-    const emojis = {"赤":"🔴","橙":"🟠","黄":"🟡","緑":"🟢","青":"🔵","藍":"🌌","紫":"🟣","銀":"🥈","金":"👑"};
-    return emojis[colorName] || "⚪";
-}
-
 function useSpray(id) {
-    if (gameData.sprayCount <= 0 || !confirm("カラースプレーを使用して色をランダムに変えますか？")) return;
+    if (gameData.sprayCount <= 0 || !confirm("スプレーを使用しますか？")) return;
     const char = gameData.characters.find(c => c.id === id);
     gameData.sprayCount--;
     char.color = lotteryColor().name;
@@ -216,15 +218,15 @@ function renderShop() {
     const sPrice = 1000 * Math.pow(2, gameData.storageLevel);
     list.innerHTML = `
         <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
-            <div style="text-align:left;"><b>倉庫拡張 (+1)</b><br><small>価格: ${sPrice.toLocaleString()}円</small></div>
+            <div style="text-align:left;"><b>倉庫拡張 (+1)</b><br><small>${sPrice.toLocaleString()}円</small></div>
             <button onclick="buy('s',${sPrice})">購入</button>
         </div>
         <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
-            <div style="text-align:left;"><b>カラースプレー</b><br><small>価格: 10,000円 / 所持: ${gameData.sprayCount}</small></div>
+            <div style="text-align:left;"><b>カラースプレー</b><br><small>10,000円 / 所持: ${gameData.sprayCount}</small></div>
             <button onclick="buy('p',10000)">購入</button>
         </div>
         <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
-            <div style="text-align:left;"><b>真実の時計</b><br><small>価格: 1億円 / 所持: ${gameData.clockCount}</small></div>
+            <div style="text-align:left;"><b>真実の時計</b><br><small>1億円 / 所持: ${gameData.clockCount}</small></div>
             <button onclick="buy('c',100000000)">購入</button>
         </div>
     `;
@@ -240,10 +242,19 @@ function buy(type, price) {
 }
 
 function renderZukan() {
-    document.getElementById('zukan-list').innerHTML = config.characters.map(baseChar => {
-        const d = gameData.zukan[baseChar.type] || { colors: {}, maxIV: 0 };
+    // configにあるリストではなく、gameData.zukanにある「発見済み」のキーだけでループ
+    const discovered = Object.keys(gameData.zukan);
+    const zList = document.getElementById('zukan-list');
+    
+    if (discovered.length === 0) {
+        zList.innerHTML = `<div style="grid-column:1/3; text-align:center; padding:20px; color:#aaa;">まだ何も発見していません</div>`;
+        return;
+    }
+
+    zList.innerHTML = discovered.map(type => {
+        const d = gameData.zukan[type];
         const cCount = Object.keys(d.colors).length;
-        return `<div class="card"><b>${baseChar.type}</b><br>最高個体値: ${d.maxIV}<br>色: ${cCount}/9 ${cCount===9?'★':''} ${d.maxIV===100?'💎':''}</div>`;
+        return `<div class="card"><b>${type}</b><br>最大個体値: ${d.maxIV}<br>色: ${cCount}/9 ${cCount===9?'★':''} ${d.maxIV===100?'💎':''}</div>`;
     }).join('');
 }
 
@@ -251,11 +262,7 @@ function gameLoop() {
     let inc = 0, name = "なし";
     if (gameData.activeCharId) {
         const char = gameData.characters.find(c => c.id === gameData.activeCharId);
-        if (char) { 
-            inc = getFullIncome(char); 
-            name = `${char.color}の${char.type}`; 
-            gameData.money += inc; 
-        }
+        if (char) { inc = getFullIncome(char); name = `${char.color}の${char.type}`; gameData.money += inc; }
     }
     document.getElementById('money').innerText = Math.floor(gameData.money).toLocaleString();
     document.getElementById('income').innerText = inc.toFixed(1);
@@ -283,9 +290,10 @@ function switchTab(t) {
     document.getElementById(t+'-sec').classList.remove('hidden');
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('tab-'+t).classList.add('active');
+    renderAll();
 }
 function renderAll() { renderStorage(); renderShop(); renderZukan(); }
-function save() { localStorage.setItem('TheHours_Final_v5', JSON.stringify(gameData)); }
+function save() { localStorage.setItem('TheHours_v7', JSON.stringify(gameData)); }
 init();
 </script>
 </body>
