@@ -1,6 +1,8 @@
-self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open('v1').then((cache) => cache.addAll(['index.html', 'config.json'])));
-});
-self.addEventListener('fetch', (e) => {
-  e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request)));
+self.addEventListener('fetch', (event) => {
+  // 常にネットワークから最新を取得し、失敗したらキャッシュを返す
+  event.respondWith(
+    fetch(event.request).catch(() => {
+      return caches.match(event.request);
+    })
+  );
 });
