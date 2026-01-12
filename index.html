@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <link rel="manifest" href="manifest.json?v=10">
+    <link rel="manifest" href="manifest.json?v=11">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>The hours</title>
@@ -28,6 +28,7 @@
         .lock-btn { position: absolute; top: 5px; right: 5px; background: none; border: none; font-size: 1.2rem; cursor: pointer; padding: 5px; }
         .backup-area { margin-top: 15px; border-top: 2px dashed #ccc; padding-top: 15px; }
         textarea { width: 100%; height: 80px; font-size: 0.7rem; margin: 5px 0; background: #f9f9f9; border: 1px solid #ddd; padding: 5px; word-break: break-all; }
+        .shop-info { font-size: 0.7rem; color: #666; margin: 2px 0; display: block; }
     </style>
 </head>
 <body>
@@ -51,7 +52,13 @@
     </div>
 
     <div id="storage-sec">
-        <div style="font-weight: bold; margin-bottom: 5px;">倉庫: <span id="storage-usage">0/0</span></div>
+        <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div style="font-weight: bold;">倉庫: <span id="storage-usage">0/0</span></div>
+            <select id="sort-select" onchange="renderStorage()" style="font-size: 0.8rem; padding: 3px; border-radius: 5px;">
+                <option value="new">新しい順</option>
+                <option value="income">収益順</option>
+            </select>
+        </div>
         <div id="storage-grid" class="grid"></div>
     </div>
 
@@ -86,35 +93,22 @@ async function init() {
     try {
         const res = await fetch('config.json');
         config = await res.json();
-        
         const saved = localStorage.getItem(SAVE_KEY);
-        if (saved) {
-            gameData = {...gameData, ...JSON.parse(saved)};
-        }
-        
+        if (saved) gameData = {...gameData, ...JSON.parse(saved)};
         if (!gameData.nextFate) generateNextFate();
-        
         calcOffline();
         checkLogin();
         autoSetBestCharacter();
         renderAll();
         setInterval(gameLoop, 1000);
-    } catch(e) {
-        console.error(e);
-        document.getElementById('timer').innerText = "通信エラー";
-    }
+    } catch(e) { document.getElementById('timer').innerText = "エラー発生"; }
 }
 
 function generateNextFate() {
     if (!config) return;
     const t = config.characters[Math.floor(Math.random() * config.characters.length)];
     const c = config.colors[Math.floor(Math.random() * config.colors.length)];
-    gameData.nextFate = {
-        type: t.type,
-        color: c.name,
-        iv: Math.floor(Math.random() * 100) + 1,
-        baseValue: t.baseValue
-    };
+    gameData.nextFate = { type: t.type, color: c.name, iv: Math.floor(Math.random() * 100) + 1, baseValue: t.baseValue };
     save();
 }
 
@@ -123,19 +117,15 @@ function getCharacter() {
     const isFirstToday = gameData.lastGetDate !== today;
     const getCount = isFirstToday ? 2 : 1;
     const maxSpace = 3 + (gameData.storageLevel || 0);
-
     if (gameData.characters.length + getCount > maxSpace) return alert("倉庫がいっぱいです");
-
     const wait = 3600000 * Math.pow(0.99, gameData.clockCount || 0);
     if (Date.now() - (gameData.lastGetTime || 0) < wait) return;
-
     for(let i=0; i<getCount; i++) {
         const newChar = { id: Date.now() + i, ...gameData.nextFate, locked: false };
         gameData.characters.push(newChar);
         updateZukan(newChar);
         generateNextFate();
     }
-    
     gameData.lastGetTime = Date.now();
     gameData.lastGetDate = today;
     autoSetBestCharacter();
@@ -145,9 +135,16 @@ function getCharacter() {
 
 function renderStorage() {
     const grid = document.getElementById('storage-grid');
+    const sort = document.getElementById('sort-select').value;
     document.getElementById('storage-usage').innerText = `${gameData.characters.length}/${3 + (gameData.storageLevel || 0)}`;
     
-    let list = [...gameData.characters].reverse();
+    let list = [...gameData.characters];
+    if (sort === 'income') {
+        list.sort((a, b) => getBaseIncome(b) - getBaseIncome(a));
+    } else {
+        list.reverse();
+    }
+
     grid.innerHTML = list.map(c => {
         const isSet = c.id === gameData.activeCharId;
         return `<div class="card ${isSet?'active-set':''}">
@@ -161,19 +158,31 @@ function renderStorage() {
     }).join('');
 }
 
-function renderZukan() {
-    const zList = document.getElementById('zukan-list');
-    const discovered = Object.keys(gameData.zukan || {});
-    zList.innerHTML = discovered.map(type => {
-        const d = gameData.zukan[type];
-        const colorCount = Object.keys(d.colors || {}).length;
-        const maxIV = d.maxIV || 0;
-        return `<div class="card">
-            <b>${type}</b><br>色: ${colorCount}/9<br>最大個体値: ${maxIV}
-            ${colorCount>=9 ? "<br><span style='color:orange;'>色コンプ★</span>":""}
-            ${maxIV>=100 ? "<br><span style='color:gold;'>MAX個体値発見★</span>":""}
-        </div>`;
-    }).join('');
+function renderShop() {
+    const list = document.getElementById('shop-list');
+    const sPrice = 1000 * Math.pow(2, gameData.storageLevel || 0);
+    list.innerHTML = `
+        <div class="card" style="display:flex; justify-content:space-between; align-items:center; text-align:left;">
+            <div><b>倉庫拡張 (+1)</b><br><small>${sPrice.toLocaleString()}円 / 最大${3+gameData.storageLevel}体</small></div>
+            <button class="action-btn" style="width:60px" onclick="buy('s',${sPrice})">購入</button>
+        </div>
+        <div class="card" style="display:flex; justify-content:space-between; align-items:center; text-align:left;">
+            <div>
+                <b>カラースプレー</b><br>
+                <span class="shop-info">使用したキャラの色がランダムで変わる</span>
+                <small>10,000円 / 所持: ${gameData.sprayCount||0}</small>
+            </div>
+            <button class="action-btn" style="width:60px" onclick="buy('p',10000)">購入</button>
+        </div>
+        <div class="card" style="display:flex; justify-content:space-between; align-items:center; text-align:left;">
+            <div>
+                <b>真実の時計</b><br>
+                <span class="shop-info">クールタイム(1時間)が所持数に応じて短縮される</span>
+                <small>100,000,000円 / 所持: ${gameData.clockCount||0}</small>
+            </div>
+            <button class="action-btn" style="width:60px" onclick="buy('c',100000000)">購入</button>
+        </div>
+    `;
 }
 
 function useSpray(id) {
@@ -187,6 +196,20 @@ function useSpray(id) {
         updateZukan(char);
         save(); renderAll();
     }
+}
+
+function renderZukan() {
+    const zList = document.getElementById('zukan-list');
+    zList.innerHTML = Object.keys(gameData.zukan || {}).map(type => {
+        const d = gameData.zukan[type];
+        const colorCount = Object.keys(d.colors || {}).length;
+        const maxIV = d.maxIV || 0;
+        return `<div class="card">
+            <b>${type}</b><br>色: ${colorCount}/9<br>最大個体値: ${maxIV}
+            ${colorCount>=9 ? "<br><span style='color:orange;'>色コンプ★</span>":""}
+            ${maxIV>=100 ? "<br><span style='color:gold;'>MAX個体値発見★</span>":""}
+        </div>`;
+    }).join('');
 }
 
 function getBaseIncome(char) {
@@ -205,40 +228,6 @@ function getFullIncome(char) {
 function getColorEmoji(colorName) {
     const emojis = {"赤":"🩷","橙":"🧡","黄":"💛","緑":"💚","青":"🩵","藍":"💙","紫":"💜","銀":"🥈","金":"👑"};
     return emojis[colorName] || "⚪";
-}
-
-function renderShop() {
-    const list = document.getElementById('shop-list');
-    const sPrice = 1000 * Math.pow(2, gameData.storageLevel || 0);
-    const clockPrice = 100000000; // 1億円
-    
-    list.innerHTML = `
-        <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
-            <div style="text-align:left;">
-                <b>倉庫拡張 (+1)</b><br>
-                <small>${sPrice.toLocaleString()}円 / 現在の最大: ${3 + (gameData.storageLevel || 0)}体</small>
-            </div>
-            <button onclick="buy('s',${sPrice})">購入</button>
-        </div>
-        
-        <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
-            <div style="text-align:left;">
-                <b>カラースプレー</b><br>
-                <small style="color: #666;">使用したキャラの色がランダムで変わる</small><br>
-                <small>10,000円 / 所持: ${gameData.sprayCount || 0}</small>
-            </div>
-            <button onclick="buy('p',10000)">購入</button>
-        </div>
-        
-        <div class="card" style="display:flex; justify-content:space-between; align-items:center;">
-            <div style="text-align:left;">
-                <b>真実の時計</b><br>
-                <small style="color: #666;">クールタイム（1時間）が所持数に応じて短縮される</small><br>
-                <small>${clockPrice.toLocaleString()}円 / 所持: ${gameData.clockCount || 0}</small>
-            </div>
-            <button onclick="buy('c',${clockPrice})">購入</button>
-        </div>
-    `;
 }
 
 function buy(type, price) {
@@ -274,7 +263,6 @@ function gameLoop() {
     document.getElementById('income').innerText = inc.toFixed(1);
     document.getElementById('active-name').innerText = name;
     document.getElementById('log-days').innerText = gameData.logDays || 0;
-    
     const wait = 3600000 * Math.pow(0.99, gameData.clockCount || 0);
     const rem = wait - (Date.now() - (gameData.lastGetTime || 0));
     const btn = document.getElementById('get-btn');
