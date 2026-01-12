@@ -26,10 +26,27 @@
         .guide-section { margin-top: 30px; padding: 15px; background: #f9f9f9; border-radius: 15px; border: 1px solid #ddd; font-size: 0.8rem; }
         .guide-section h3 { font-size: 0.9rem; margin: 15px 0 5px 0; color: var(--accent); border-bottom: 1px solid #eee; }
         textarea { width: 100%; height: 60px; font-size: 0.7rem; margin: 5px 0; }
+        /* 通知メッセージのスタイル */
+#toast {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+#toast.show { opacity: 1; }
     </style>
 </head>
 <body>
-
+<div id="toast"></div>
 <div class="container">
     <h1>The hours</h1>
     <div class="status">
@@ -78,7 +95,7 @@
 
    <div class="guide-section">
         <h3>・遊び方</h3>
-        <p>1時間に1回ボタンを押すとランダムでモンスターをゲットできるよ！<br>ゲットしたキャラをセットしてお金を稼いでもらおう！<br>一日の最初のゲットは追加で一体プレゼント！</p>
+        <p>1時間に1回ボタンを押すとランダムでモンスターをゲットできるよ！<br>ゲットしたモンスターをセットしてお金を稼いでもらおう！<br>一日の最初のゲットは追加で一体プレゼント！</p>
         
         <h3>・種族・色・個体値について</h3>
         <p>ゲットしたときに「種族・色・個体値」がランダムで決まるよ！</p>
@@ -87,7 +104,7 @@
             <li><b>色：</b>金や銀だとたくさん稼ぐよ！ショップのスプレーで変えられる！</li>
             <li><b>個体値：</b>モンスターの才能を表してるよ！1から100まであって、数が多いほど強い！</li>
         </ul>
-        <p>変えられるのは色だけ！種族と個体値が良いキャラをゲットしよう！</p>
+        <p>変えられるのは色だけ！種族と個体値が良いモンスターをゲットしよう！</p>
 
         <h3>・データバックアップについて</h3>
         <p>データを残す方法：<br>
@@ -167,7 +184,7 @@ function getCharacter() {
     const isFirstToday = gameData.lastGetDate !== today;
     const getCount = isFirstToday ? 2 : 1;
     const maxSpace = 3 + (gameData.storageLevel || 0);
-    if (gameData.characters.length + getCount > maxSpace) return alert("倉庫がいっぱいです");
+    if (gameData.characters.length + getCount > maxSpace) return showToast("倉庫がいっぱいです");
     const wait = 3600000 * Math.pow(0.99, gameData.clockCount || 0);
     if (Date.now() - (gameData.lastGetTime || 0) < wait) return;
     for(let i=0; i<getCount; i++) {
@@ -182,7 +199,7 @@ function getCharacter() {
     gameData.lastGetDate = today;
     autoSetBestCharacter();
     save(); renderAll();
-    alert(getCount === 2 ? "今日の初GETボーナスで2体手に入れた！" : "モンスターをゲットした！");
+    showToast(getCount === 2 ? "今日の初GETボーナスで2体手に入れた！" : "モンスターをゲットした！");
 }
 
 function renderStorage() {
@@ -232,7 +249,7 @@ function renderShop() {
 }
 
 function useSpray(id) {
-    if ((gameData.sprayCount || 0) <= 0) return alert("スプレー不足");
+    if ((gameData.sprayCount || 0) <= 0) return showToast("スプレー不足");
     if (!confirm("色を変えますか？(レアな色は出にくいよ)")) return;
     const char = gameData.characters.find(c => c.id === id);
     if (char) {
@@ -247,7 +264,7 @@ function useSpray(id) {
         char.color = selCol.name;
         updateZukan(char);
         save(); renderAll();
-        alert(`スプレーを使って「${selCol.name}」に染まった！`);
+        showToast(`${selCol.name}色に染まったよ！`);
     }
 }
 
@@ -270,7 +287,7 @@ function getColorEmoji(colorName) {
 }
 
 function buy(type, price) {
-    if (gameData.money < price) return alert("お金不足");
+    if (gameData.money < price) return showToast("お金不足");
     gameData.money -= price;
     if(type==='s') gameData.storageLevel++;
     if(type==='p') gameData.sprayCount++;
@@ -300,6 +317,13 @@ function gameLoop() {
 }
 
 function save() { localStorage.setItem(SAVE_KEY, JSON.stringify(gameData)); }
+// ふわっと出る通知関数
+function showToast(msg) {
+    const toast = document.getElementById('toast');
+    toast.innerText = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2000); // 2秒で消える
+}
 function toggleLock(id) { const char = gameData.characters.find(c => c.id === id); if (char) { char.locked = !char.locked; save(); renderStorage(); } }
 function setActive(id) { gameData.activeCharId = (gameData.activeCharId===id)? null:id; if(!gameData.activeCharId) autoSetBestCharacter(); renderAll(); }
 function delChar(id) { if(confirm("捨てる？")){ gameData.characters=gameData.characters.filter(c=>c.id!==id); if(gameData.activeCharId===id) gameData.activeCharId = null; autoSetBestCharacter(); renderAll(); } }
@@ -345,8 +369,8 @@ function renderZukan() {
     }).join('');
 }
 function generateBackupCode() { document.getElementById('backup-text').value = btoa(unescape(encodeURIComponent(JSON.stringify(gameData)))); }
-function copyBackup() { const a = document.getElementById('backup-text'); a.select(); document.execCommand('copy'); alert("コピー済"); }
-function restoreData() { const c = document.getElementById('restore-text').value; try { gameData = JSON.parse(decodeURIComponent(escape(atob(c)))); save(); location.reload(); } catch(e) { alert("コード不正"); } }
+function copyBackup() { const a = document.getElementById('backup-text'); a.select(); document.execCommand('copy'); showToast("コピー済"); }
+function restoreData() { const c = document.getElementById('restore-text').value; try { gameData = JSON.parse(decodeURIComponent(escape(atob(c)))); save(); location.reload(); } catch(e) { showToast("コード不正"); } }
 function renderAll() { renderStorage(); renderShop(); renderZukan(); }
 init();
 </script>
