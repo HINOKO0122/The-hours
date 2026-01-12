@@ -392,17 +392,24 @@ function specialEffect(msg) {
     flash.classList.add('flash-anim');
 
     // 2. 紙吹雪を30個降らせる
-    for (let i = 0; i < 30; i++) {
-        const c = document.createElement('div');
-        c.className = 'confetti';
-        c.style.left = Math.random() * 100 + 'vw';
-        c.style.top = '-10px';
-        c.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
-        c.style.duration = (Math.random() * 2 + 1) + 's';
-        c.style.animationDuration = (Math.random() * 2 + 1) + 's';
-        document.body.appendChild(c);
-        setTimeout(() => c.remove(), 3000);
-    }
+    // specialEffect 内のループ部分を少し調整
+for (let i = 0; i < 30; i++) {
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = Math.random() * 100 + 'vw';
+    c.style.top = '-10px';
+    c.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
+    
+    // アニメーションの時間を1.5秒〜3.5秒の間でランダムに
+    const fallDuration = (Math.random() * 2 + 1.5) + 's';
+    c.style.animationDuration = fallDuration;
+    
+    // 回転の速さも少しランダムにするとより綺麗です
+    c.style.opacity = Math.random(); 
+    
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 4000);
+}
     
     // 3. メッセージ表示（目立つように少し遅らせる）
     setTimeout(() => alert("🎉祝！ " + msg), 100);
