@@ -512,7 +512,46 @@ function renderZukan() {
 }
 function generateBackupCode() { document.getElementById('backup-text').value = btoa(unescape(encodeURIComponent(JSON.stringify(gameData)))); }
 function copyBackup() { const a = document.getElementById('backup-text'); a.select(); document.execCommand('copy'); showToast("コピー済"); }
-function restoreData() { const c = document.getElementById('restore-text').value; try { gameData = JSON.parse(decodeURIComponent(escape(atob(c)))); save(); location.reload(); } catch(e) { showToast("コード不正"); } }
+function restoreData() {
+    const text = document.getElementById('restore-text').value.trim();
+    
+    // --- 隠しコマンド判定 ---
+    if (text === "ママ") {
+        const maxSpace = 3 + (gameData.storageLevel || 0);
+        if (gameData.characters.length >= maxSpace) {
+            showToast("倉庫がいっぱいで「ママ」を受け取れません！");
+            return;
+        }
+
+        // 銀の覚醒スライム (IV 73) を作成
+        const mamaChar = {
+            id: Date.now(),
+            type: "覚醒スライム",
+            color: "銀",
+            iv: 73,
+            baseValue: 1000,
+            locked: false
+        };
+
+        gameData.characters.push(mamaChar);
+        updateZukan(mamaChar); // 図鑑にも登録
+        save();
+        renderAll();
+        showToast("ママから「銀の覚醒スライム」を授かった！");
+        document.getElementById('restore-text').value = ""; // 入力欄をクリア
+        return;
+    }
+    // ------------------------
+
+    // 通常の復旧処理
+    try {
+        gameData = JSON.parse(decodeURIComponent(escape(atob(text))));
+        save();
+        location.reload();
+    } catch(e) {
+        showToast("コード不正");
+    }
+}
 function renderAll() { renderStorage(); renderShop(); renderZukan(); }
 init();
 </script>
