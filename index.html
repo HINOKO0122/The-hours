@@ -618,7 +618,6 @@ function restoreData() {
     }
 }
 function renderAll() { renderStorage(); renderShop(); renderZukan(); }
-init();
 let purchaseInterval = null;
 let purchaseTimeout = null;
 
@@ -666,6 +665,8 @@ function copyBackupFallback(code) {
     showToast("コードをコピーしました！");
     textArea.style.display = "none";
 }
+    
+init();
 </script>
 </body>
 </html>
