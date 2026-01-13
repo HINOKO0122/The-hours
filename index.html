@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="The hours">
     <title>The hours</title>
     <style>
         :root { --main: #2c3e50; --accent: #2980b9; --bg: #f4f7f6; --danger: #e74c3c; }
@@ -127,17 +130,21 @@
     </div>
 
     <div id="shop-sec" class="hidden">
-        <div id="shop-list" style="display:flex; flex-direction:column; gap:8px;"></div>
-        <div style="margin-top:15px; border-top:1px dashed #ccc; padding-top:10px;">
-            <b>💾 バックアップ</b>
-            <button class="action-btn" onclick="generateBackupCode()">コードを生成</button>
-            <textarea id="backup-text" readonly></textarea>
-            <button class="action-btn" onclick="copyBackup()">コードをコピー</button>
-            <hr>
-            <textarea id="restore-text" placeholder="ここにコードを貼り付け"></textarea>
-            <button class="action-btn" onclick="restoreData()">データを復旧</button>
-        </div>
+    <div id="shop-list" style="display:flex; flex-direction:column; gap:8px;"></div>
+    <div style="margin-top:15px; border-top:1px dashed #ccc; padding-top:10px;">
+        <b>💾 データの保存・復旧</b>
+        <button class="action-btn" onclick="handleBackup()" style="background: #27ae60; color: white; padding: 12px; margin: 10px 0;">
+            現在のデータを保存（共有・コピー）
+        </button>
+        
+        <textarea id="backup-text" style="display:none;" readonly></textarea>
+        
+        <hr>
+        <p style="font-size: 0.7rem; color: #666; margin-bottom: 5px;">復旧する場合は下にコードを貼り付けてください</p>
+        <textarea id="restore-text" placeholder="保存したコードをここに貼り付け"></textarea>
+        <button class="action-btn" onclick="restoreData()">データを復旧</button>
     </div>
+</div>
 
     <div id="zukan-sec" class="hidden">
         <div id="zukan-list" class="grid"></div>
@@ -612,6 +619,53 @@ function restoreData() {
 }
 function renderAll() { renderStorage(); renderShop(); renderZukan(); }
 init();
+let purchaseInterval = null;
+let purchaseTimeout = null;
+
+// 長押し購入
+function startLongPress(type, price) {
+    buy(type, price);
+    purchaseTimeout = setTimeout(() => {
+        purchaseInterval = setInterval(() => {
+            if (gameData.money < price) { stopLongPress(); return; }
+            buy(type, price);
+        }, 100);
+    }, 1000);
+}
+
+function stopLongPress() {
+    clearTimeout(purchaseTimeout);
+    clearInterval(purchaseInterval);
+    purchaseTimeout = null;
+    purchaseInterval = null;
+}
+
+// 共有・コピー一括処理
+async function handleBackup() {
+    const code = btoa(unescape(encodeURIComponent(JSON.stringify(gameData))));
+    const textArea = document.getElementById('backup-text');
+    textArea.value = code;
+
+    if (navigator.share) {
+        try {
+            await navigator.share({ title: 'The Hours データ', text: code });
+            showToast("共有を開きました");
+        } catch (err) {
+            if (err.name !== 'AbortError') copyBackupFallback(code);
+        }
+    } else {
+        copyBackupFallback(code);
+    }
+}
+
+function copyBackupFallback(code) {
+    const textArea = document.getElementById('backup-text');
+    textArea.style.display = "block";
+    textArea.select();
+    document.execCommand('copy');
+    showToast("コードをコピーしました！");
+    textArea.style.display = "none";
+}
 </script>
 </body>
 </html>
