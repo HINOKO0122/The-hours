@@ -339,11 +339,11 @@ function getBaseIncome(char) {
     if(!config) return 0;
     const cData = config.colors.find(c => c.name === char.color);
     
-    // 元々の固有値 ＋ 捨てた数
-    const bonusBase = gameData.discardCount[char.type] || 0;
+    // 捨てた数 × 10 をボーナスとして加算
+    const bonusBase = (gameData.discardCount[char.type] || 0) * 10;
     const currentBaseValue = char.baseValue + bonusBase;
     
-    // (固有値 + 捨てた数) × (個体値/100) × 色倍率
+    // (固有値 + ボーナス) × (個体値/100) × 色倍率
     return currentBaseValue * (char.iv / 100) * (cData ? cData.bonus : 1);
 }
 
@@ -495,14 +495,17 @@ function renderZukan() {
     zList.innerHTML = Object.keys(gameData.zukan || {}).map(type => {
         const d = gameData.zukan[type];
         const colorCount = Object.keys(d.colors || {}).length;
-        const isComp = colorCount >= 9; // 全9色
-        const isMaxIV = (d.maxIV || 0) >= 100; // 個体値100
+        const isComp = colorCount >= 9;
+        const isMaxIV = (d.maxIV || 0) >= 100;
         
-        const level = gameData.discardCount[type] || 0;
+        // 捨てた数
+        const count = gameData.discardCount[type] || 0;
+        // 加算されている固有値ボーナス
+        const bonusValue = count * 10;
 
         return `<div class="card">
             <b>${type}</b><br>
-            <small style="color:var(--accent);">強化Lv: ${level}</small><br>
+            <small style="color:var(--accent);">強化値: +${bonusValue}</small><br>
             色:${colorCount}/9<br>
             最大個体値:${d.maxIV}
             ${isComp ? '<span class="comp-text">全色コンプ★</span>' : ''}
