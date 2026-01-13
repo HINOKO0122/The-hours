@@ -87,6 +87,11 @@
     font-size: 0.75rem;
     margin-top: 2px;
 }
+.action-btn {
+    /* 既存のスタイルに以下を追加 */
+    user-select: none;
+    -webkit-user-select: none;
+}
     </style>
 </head>
 <body>
@@ -282,8 +287,7 @@ function renderStorage() {
             <span style="font-size:1.5rem;">${getColorEmoji(c.color)}</span><br>
             <small style="color: #666;">${c.color}</small><br> <b>${c.type}</b><br>
             個体値: ${c.iv}<br>
-            収益: ${Math.round(getBaseIncome(c)).toLocaleString()}<br>
-            <button class="action-btn" onclick="setActive(${c.id})">${isSet?'解除':'セット'}</button>
+            収益: ${getBaseIncome(c).toLocaleString()}<br> <button class="action-btn" onclick="setActive(${c.id})">${isSet?'解除':'セット'}</button>
             <button class="action-btn" onclick="useSpray(${c.id})" ${gameData.sprayCount > 0 ? '' : 'style="color:#ccc;"'}>スプレー (${gameData.sprayCount||0})</button>
             ${!c.locked ? `<button class="action-btn" onclick="delChar(${c.id})" style="color:var(--danger); border-color:var(--danger);">捨てる</button>` : ''}
         </div>`;
@@ -304,13 +308,25 @@ function renderShop() {
             <b>カラースプレー</b><br>
             <small style="color: #666; display: block; margin-bottom: 5px;">使用したキャラの色がランダムで変わるよ！</small>
             <small>価格: 10,000円 / <b>所持数: ${gameData.sprayCount||0}個</b></small>
-            <button class="action-btn" onclick="buy('p',10000)">購入</button>
+            <button class="action-btn" 
+                onmousedown="startLongPress('p',10000)" 
+                onmouseup="stopLongPress()" 
+                onmouseleave="stopLongPress()"
+                ontouchstart="startLongPress('p',10000)" 
+                ontouchend="stopLongPress()"
+                style="user-select: none;">購入（長押しで一気に購入）</button>
         </div>
         <div class="card" style="text-align:left;">
             <b>真実の時計</b><br>
             <small style="color: #666; display: block; margin-bottom: 5px;">クールタイム(1時間)が所持数に応じて少し短くなるよ！</small>
             <small>価格: 1億円 / <b>所持数: ${gameData.clockCount||0}個</b></small>
-            <button class="action-btn" onclick="buy('c',100000000)">購入</button>
+            <button class="action-btn" 
+                onmousedown="startLongPress('c',100000000)" 
+                onmouseup="stopLongPress()" 
+                onmouseleave="stopLongPress()"
+                ontouchstart="startLongPress('c',100000000)" 
+                ontouchend="stopLongPress()"
+                style="user-select: none;">購入（長押しで一気に購入）</button>
         </div>
     `;
 }
@@ -367,7 +383,34 @@ function buy(type, price) {
     if(type==='c') gameData.clockCount++;
     save(); renderAll();
 }
+let purchaseInterval = null;
+let purchaseTimeout = null;
 
+// 長押し開始
+function startLongPress(type, price) {
+    // 最初の1個を購入
+    buy(type, price);
+
+    // 1秒後に連打モードへ移行
+    purchaseTimeout = setTimeout(() => {
+        purchaseInterval = setInterval(() => {
+            // お金が足りなくなったら自動停止
+            if (gameData.money < price) {
+                stopLongPress();
+                return;
+            }
+            buy(type, price);
+        }, 100); // 0.1秒間隔
+    }, 1000); // 1秒待機
+}
+
+// 長押し終了
+function stopLongPress() {
+    clearTimeout(purchaseTimeout);
+    clearInterval(purchaseInterval);
+    purchaseTimeout = null;
+    purchaseInterval = null;
+}
 function gameLoop() {
     let inc = 0, name = "なし";
     if (gameData.activeCharId) {
@@ -492,15 +535,27 @@ function updateZukan(char) {
 }
 function renderZukan() {
     const zList = document.getElementById('zukan-list');
-    zList.innerHTML = Object.keys(gameData.zukan || {}).map(type => {
+    if (!config) return;
+
+    // 図鑑に登録されている種族のリストを取得
+    const registeredTypes = Object.keys(gameData.zukan || {});
+
+    // 元々の固有値（baseValue）が小さい順にソート
+    registeredTypes.sort((a, b) => {
+        const charA = config.characters.find(c => c.type === a);
+        const charB = config.characters.find(c => c.type === b);
+        const valA = charA ? charA.baseValue : 0;
+        const valB = charB ? charB.baseValue : 0;
+        return valA - valB;
+    });
+
+    zList.innerHTML = registeredTypes.map(type => {
         const d = gameData.zukan[type];
         const colorCount = Object.keys(d.colors || {}).length;
         const isComp = colorCount >= 9;
         const isMaxIV = (d.maxIV || 0) >= 100;
         
-        // 捨てた数
         const count = gameData.discardCount[type] || 0;
-        // 加算されている強化値ボーナス
         const bonusValue = count * 10;
 
         return `<div class="card">
