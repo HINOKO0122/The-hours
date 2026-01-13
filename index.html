@@ -129,14 +129,16 @@
     <div id="shop-sec" class="hidden">
         <div id="shop-list" style="display:flex; flex-direction:column; gap:8px;"></div>
         <div style="margin-top:15px; border-top:1px dashed #ccc; padding-top:10px;">
-            <b>💾 バックアップ</b>
-            <button class="action-btn" onclick="generateBackupCode()">コードを生成</button>
-            <textarea id="backup-text" readonly></textarea>
-            <button class="action-btn" onclick="copyBackup()">コードをコピー</button>
-            <hr>
-            <textarea id="restore-text" placeholder="ここにコードを貼り付け"></textarea>
-            <button class="action-btn" onclick="restoreData()">データを復旧</button>
-        </div>
+    <b>💾 データを保存する</b>
+    <button class="action-btn" onclick="generateAndShareBackup()" style="background: #27ae60; color: white; padding: 12px;">データを保存（LINEやメモ帳へ）</button>
+    <textarea id="backup-text" readonly style="height: 40px; opacity: 0.7;" placeholder="ここにコードが生成されます"></textarea>
+    
+    <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+    
+    <b>📂 データを復旧する</b>
+    <textarea id="restore-text" placeholder="保存したコードをここに貼り付けてね"></textarea>
+    <button class="action-btn" onclick="restoreData()">データを復旧</button>
+</div>
     </div>
 
     <div id="zukan-sec" class="hidden">
@@ -568,8 +570,37 @@ function renderZukan() {
         </div>`;
     }).join('');
 }
-function generateBackupCode() { document.getElementById('backup-text').value = btoa(unescape(encodeURIComponent(JSON.stringify(gameData)))); }
-function copyBackup() { const a = document.getElementById('backup-text'); a.select(); document.execCommand('copy'); showToast("コピー済"); }
+// バックアップを生成して共有（保存）を促す
+async function generateAndShareBackup() {
+    // 1. コード生成
+    const code = btoa(unescape(encodeURIComponent(JSON.stringify(gameData))));
+    const textarea = document.getElementById('backup-text');
+    textarea.value = code;
+
+    // 2. 共有メニューの呼び出し（スマホの保存・送信画面を開く）
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: 'The hours バックアップ',
+                text: code
+            });
+            showToast("共有画面を開いたよ！");
+        } catch (err) {
+            // ユーザーがキャンセルした場合は何もしない
+            console.log("Share cancelled");
+        }
+    } else {
+        // Share APIが使えないPCなどの場合のフォールバック（コピーのみ）
+        try {
+            await navigator.clipboard.writeText(code);
+            showToast("コードをコピーしたよ！");
+        } catch (err) {
+            textarea.select();
+            document.execCommand('copy');
+            showToast("コードをコピーしました");
+        }
+    }
+}
 function restoreData() {
     const text = document.getElementById('restore-text').value.trim();
     
