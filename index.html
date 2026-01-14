@@ -561,7 +561,7 @@ function renderZukan() {
         const isMaxIV = (d.maxIV || 0) >= 100;
         
         const count = gameData.discardCount[type] || 0;
-        const bonusValue = count * 10;
+        const bonusValue = count * 1;
 
         return `<div class="card">
             <b>${type}</b><br>
