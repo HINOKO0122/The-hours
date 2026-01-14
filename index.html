@@ -148,7 +148,10 @@
    <div class="guide-section">
         <h3>・遊び方</h3>
         <p>1時間に1回ボタンを押すとランダムでモンスターをゲットできるよ！<br>ゲットしたモンスターをセットしてお金を稼いでもらおう！<br>セットしたモンスターだけがお金を稼ぐよ！<br>一日の最初のゲットは追加で一体プレゼント！<br>捨てるとその種族がほんの少しだけ強くなるよ！要らないモンスターは捨てちゃおう！</p>
-        
+
+        <h3>・ロック機能について</h3>
+        <p>ゲットしたときに自動でキャラクターをロックしているよ！<br>ロックしていると捨てるボタンが消えて、間違えて捨てる可能性が減るよ！<br>キャラの右上の🔒マークを押すとロックのオンオフが変わるよ！</p>
+       
         <h3>・種族・色・個体値について</h3>
         <p>ゲットしたときに「種族・色・個体値」がランダムで決まるよ！</p>
         <ul>
@@ -604,41 +607,23 @@ async function generateAndShareBackup() {
 function restoreData() {
     const text = document.getElementById('restore-text').value.trim();
     
-    // --- 隠しコマンド判定：お兄ちゃん ---
-    if (text === "お兄ちゃん") {
-        const maxSpace = 3 + (gameData.storageLevel || 0);
-        if (gameData.characters.length >= maxSpace) {
-            showToast("倉庫がいっぱいで「フェニックス」を受け取れません！");
-            return;
-        }
-
-        // 青のフェニックス (IV 94) を作成
-        const oniiChar = {
-            id: Date.now(),
-            type: "フェニックス",
-            color: "青",
-            iv: 94,
-            baseValue: 800,
-            locked: true // 最初からロック済み
-        };
-
-        gameData.characters.push(oniiChar);
-        updateZukan(oniiChar); // 図鑑にも登録
-        save();
-        renderAll();
-        showToast("お兄ちゃんから「青のフェニックス」を授かった！");
-        document.getElementById('restore-text').value = ""; // 入力欄をクリア
+    // データが空の場合は何もしない
+    if (!text) {
+        showToast("コードを貼り付けてね");
         return;
     }
-    // ------------------------
 
     // 通常の復旧処理
     try {
+        // バックアップ文字列を元のゲームデータに変換
         gameData = JSON.parse(decodeURIComponent(escape(atob(text))));
+        
+        // データを保存して画面を再読み込み
         save();
         location.reload();
     } catch(e) {
-        showToast("コード不正");
+        // コードが間違っている場合
+        showToast("コードが正しくないよ");
     }
 }
 function renderAll() { renderStorage(); renderShop(); renderZukan(); }
