@@ -292,7 +292,7 @@ function renderStorage() {
         const isSet = c.id === gameData.activeCharId;
         return `<div class="card ${isSet?'active-set':''}">
             <button class="lock-btn" onclick="toggleLock(${c.id})">${c.locked ? "🔒" : "🔓"}</button>
-            <span style="font-size:1.5rem;">${getColorEmoji(c.color)}</span><br>
+            <div>${getCharacterImage(c)}</div><br>
             <small style="color: #666;">${c.color}</small><br> <b>${c.type}</b><br>
             個体値: ${c.iv}<br>
             収益: ${getBaseIncome(c).toLocaleString()}<br> <button class="action-btn" onclick="setActive(${c.id})">${isSet?'解除':'セット'}</button>
@@ -627,6 +627,14 @@ function restoreData() {
     }
 }
 function renderAll() { renderStorage(); renderShop(); renderZukan(); }
+function getCharacterImage(char) {
+    const fileName = `${char.type}_${char.color}.png`;
+    
+    return `<img src="images/${fileName}" alt="${char.type}" 
+             style="height: 80px; width: auto; display: block; margin: 0 auto 5px; object-fit: contain;" 
+             onerror="this.style.display='none'; this.nextSibling.style.display='block';">
+             <span style="display:none; font-size:1.5rem;">${getColorEmoji(char.color)}</span>`;
+}
 init();
 </script>
 </body>
