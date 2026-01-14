@@ -250,19 +250,22 @@ function getCharacter() {
 
     // 3. 倉庫に空きがある場合のみ、実際にモンスターを追加してタイマーを更新する
     // getCharacter 関数内のモンスター追加ループの中を修正
+// getCharacter 関数内のループを修正
 for(let i=0; i<getCount; i++) {
     let fate = gameData.nextFateList.shift();
     if (!fate) fate = generateSingleFate();
-    const newChar = { id: Date.now() + i, ...fate, locked: false };
+    
+    // ここで locked: true に設定
+    const newChar = { id: Date.now() + i, ...fate, locked: true }; 
+    
     gameData.characters.push(newChar);
     updateZukan(newChar);
 
-    // --- ここにレア演出判定を追加 ---
-    const kakuseiList = ["覚醒スライム", "覚醒ゴブリン", "覚醒ドラゴン", "覚醒フェニックス"]; // configに合わせて調整してください
+    // レア演出判定
+    const kakuseiList = ["覚醒スライム", "覚醒ゴブリン", "覚醒ドラゴン", "覚醒フェニックス"];
     if (newChar.iv === 100 || kakuseiList.includes(newChar.type)) {
         specialEffect(`${newChar.type} (個体値:${newChar.iv}) を引き当てた！！`);
     }
-    // ----------------------------
 }
     
     fillFate();
