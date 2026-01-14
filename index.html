@@ -303,7 +303,7 @@ function renderShop() {
         <div class="card" style="text-align:left;">
             <b>倉庫拡張 (+1)</b><br>
             <small style="color: #666; display: block; margin-bottom: 5px;">倉庫の最大容量を増やします</small>
-            <small>価格: ${sPrice.toLocaleString()}円 / 現在: ${3+gameData.storageLevel}体</small>
+            <small>価格: ${sPrice.toLocaleString()}円 / 現在: ${3+gameData.storageLevel}枠</small>
             <button class="action-btn" onclick="buy('s',${sPrice})">購入</button>
         </div>
         <div class="card" style="text-align:left;">
@@ -601,29 +601,29 @@ async function generateAndShareBackup() {
 function restoreData() {
     const text = document.getElementById('restore-text').value.trim();
     
-    // --- 隠しコマンド判定 ---
-    if (text === "ママ") {
+    // --- 隠しコマンド判定：お兄ちゃん ---
+    if (text === "お兄ちゃん") {
         const maxSpace = 3 + (gameData.storageLevel || 0);
         if (gameData.characters.length >= maxSpace) {
-            showToast("倉庫がいっぱいで「ママ」を受け取れません！");
+            showToast("倉庫がいっぱいで「フェニックス」を受け取れません！");
             return;
         }
 
-        // 銀の覚醒スライム (IV 73) を作成
-        const mamaChar = {
+        // 青のフェニックス (IV 94) を作成
+        const oniiChar = {
             id: Date.now(),
-            type: "覚醒スライム",
-            color: "銀",
-            iv: 73,
-            baseValue: 1000,
-            locked: false
+            type: "フェニックス",
+            color: "青",
+            iv: 94,
+            baseValue: 800,
+            locked: true // 最初からロック済み
         };
 
-        gameData.characters.push(mamaChar);
-        updateZukan(mamaChar); // 図鑑にも登録
+        gameData.characters.push(oniiChar);
+        updateZukan(oniiChar); // 図鑑にも登録
         save();
         renderAll();
-        showToast("ママから「銀の覚醒スライム」を授かった！");
+        showToast("お兄ちゃんから「青のフェニックス」を授かった！");
         document.getElementById('restore-text').value = ""; // 入力欄をクリア
         return;
     }
