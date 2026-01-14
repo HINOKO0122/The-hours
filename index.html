@@ -357,11 +357,10 @@ function getBaseIncome(char) {
     if(!config) return 0;
     const cData = config.colors.find(c => c.name === char.color);
     
-    // 捨てた数 × 10 をボーナスとして加算
-    const bonusBase = (gameData.discardCount[char.type] || 0) * 10;
+    // ★ 捨てた数 × 1 をボーナスにする
+    const bonusBase = (gameData.discardCount[char.type] || 0) * 1; 
     const currentBaseValue = char.baseValue + bonusBase;
     
-    // (強化値 + ボーナス) × (個体値/100) × 色倍率
     return currentBaseValue * (char.iv / 100) * (cData ? cData.bonus : 1);
 }
 
@@ -485,20 +484,18 @@ function showToast(msg) {
 function toggleLock(id) { const char = gameData.characters.find(c => c.id === id); if (char) { char.locked = !char.locked; save(); renderStorage(); } }
 function setActive(id) { gameData.activeCharId = (gameData.activeCharId===id)? null:id; if(!gameData.activeCharId) autoSetBestCharacter(); renderAll(); }
 function delChar(id) {
-    if(confirm("このモンスターを逃がしますか？\n(その種族の【強化値】が +10 されます)")){
+    if(confirm("このモンスターを逃がしますか？\n(その種族の【強化値】が +1 されます)")){
         const char = gameData.characters.find(c => c.id === id);
         if (char) {
-            // 種族ごとの捨てたカウントを加算
             if (!gameData.discardCount[char.type]) gameData.discardCount[char.type] = 0;
-            gameData.discardCount[char.type]++;
+            gameData.discardCount[char.type]++; // 捨てた数をカウント
             
-            // 削除処理
             gameData.characters = gameData.characters.filter(c => c.id !== id);
             if(gameData.activeCharId === id) gameData.activeCharId = null;
             autoSetBestCharacter();
             save();
             renderAll();
-            showToast(`${char.type}の強化値が +10 向上した！`);
+            showToast(`${char.type}の強化値が +1 向上した！`); // ★ここも+1に変更
         }
     }
 }
