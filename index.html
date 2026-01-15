@@ -182,21 +182,40 @@ const SAVE_KEY = 'TheHours_v8';
 const DB_NAME = "TheHoursDB";
 const STORE_NAME = "gameData";
 
-// データベースから読み込み
+// 確実にデータを読み込むための関数
 function loadFromDB() {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, 1);
+        
         request.onupgradeneeded = (e) => {
-            e.target.result.createObjectStore(STORE_NAME);
+            const db = e.target.result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME);
+            }
         };
+
         request.onsuccess = (e) => {
             const db = e.target.result;
             const tx = db.transaction(STORE_NAME, "readonly");
             const store = tx.objectStore(STORE_NAME);
             const getReq = store.get("current");
             getReq.onsuccess = () => resolve(getReq.result || null);
+            getReq.onerror = () => reject("Read Error");
         };
+
+        request.onerror = () => reject("Open Error");
     });
+}
+
+// 保存用の関数
+function saveToDB(data) {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onsuccess = (e) => {
+        const db = e.target.result;
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        const store = tx.objectStore(STORE_NAME);
+        store.put(data, "current");
+    };
 }
 
 // データベースへ保存
@@ -222,31 +241,40 @@ async function init() {
         const res = await fetch('config.json');
         config = await res.json();
         
-        // IndexedDBからデータを取得
-        let saved = await loadFromDB();
+        // 1. まずIndexedDBから読み込みを試みる
+        let saved = await loadFromDB().catch(err => {
+            console.error("IndexedDB Load Failed:", err);
+            return null;
+        });
         
-        // もしDBに無くてlocalStorageにあるなら引っ越し
+        // 2. DBになければlocalStorageから探す（引っ越し用）
         if (!saved) {
             const oldSaved = localStorage.getItem(SAVE_KEY);
             if (oldSaved) {
                 saved = JSON.parse(oldSaved);
-                saveToDB(saved); // DBへ保存
-                console.log("Migrated from localStorage to IndexedDB");
+                saveToDB(saved); // DBへコピー
             }
         }
 
-        if (saved) gameData = {...gameData, ...saved};
+        // 3. データがあれば上書き、なければ初期データのまま
+        if (saved) {
+            gameData = {...gameData, ...saved};
+        }
         
+        // --- 正常に読み込めた後の処理 ---
         cleanBadData();
         fillFate();
         calcOffline();
         checkLogin();
         autoSetBestCharacter();
         renderAll();
+        
+        // ループ開始
         setInterval(gameLoop, 1000);
+        
     } catch(e) { 
-        console.error(e);
-        document.getElementById('timer').innerText = "Load Error"; 
+        console.error("Init Error:", e);
+        document.getElementById('timer').innerText = "通信エラー発生"; 
     }
 }
 
