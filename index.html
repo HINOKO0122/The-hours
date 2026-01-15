@@ -306,10 +306,8 @@ function renderShop() {
     const list = document.getElementById('shop-list');
     
     // --- 待ち時間の計算 ---
-    const baseWaitMs = 3600000; // 元々の1時間（ミリ秒）
+    const baseWaitMs = 3600000;
     const currentWaitMs = baseWaitMs * Math.pow(0.99, gameData.clockCount || 0);
-    
-    // 分と秒に変換
     const totalSeconds = Math.floor(currentWaitMs / 1000);
     const displayMinutes = Math.floor(totalSeconds / 60);
     const displaySeconds = totalSeconds % 60;
@@ -339,9 +337,7 @@ function renderShop() {
             <b>真実の時計</b><br>
             <small style="color: #666; display: block; margin-bottom: 5px;">クールタイムが所持数に応じて少し短くなるよ！</small>
             <small>価格: 1億円 / <b>所持数: ${gameData.clockCount||0}個</b></small>
-            <div style="background: #f0f0f0; padding: 5px; border-radius: 5px; margin: 5px 0; font-size: 0.8rem; text-align: center;">
-                現在：1時間 → <b>${displayMinutes}分${displaySeconds}秒</b>
-            </div>
+            <small style="display: block; margin-top: 5px;">現在：1時間 → <b>${displayMinutes}分${displaySeconds}秒</b></small>
             <button class="action-btn" 
                 onmousedown="startLongPress('c',100000000)" 
                 onmouseup="stopLongPress()" 
