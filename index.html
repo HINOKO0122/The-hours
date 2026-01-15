@@ -207,17 +207,6 @@ function loadFromDB() {
     });
 }
 
-// 保存用の関数
-function saveToDB(data) {
-    const request = indexedDB.open(DB_NAME, 1);
-    request.onsuccess = (e) => {
-        const db = e.target.result;
-        const tx = db.transaction(STORE_NAME, "readwrite");
-        const store = tx.objectStore(STORE_NAME);
-        store.put(data, "current");
-    };
-}
-
 // データベースへ保存
 function saveToDB(data) {
     const request = indexedDB.open(DB_NAME, 1);
