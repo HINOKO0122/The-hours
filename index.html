@@ -138,6 +138,14 @@
     <b>📂 データを復旧する</b>
     <textarea id="restore-text" placeholder="保存したコードをここに貼り付けてね"></textarea>
     <button class="action-btn" onclick="restoreData()">データを復旧</button>
+
+    <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+
+    <div style="margin-top:15px; border-top:1px dashed #ccc; padding-top:10px;">
+    <b>🔔 通知設定</b><br>
+    <small style="color: #666; display: block; margin-bottom: 5px;">GETできるようになったらスマホに通知するよ</small>
+    <button class="action-btn" onclick="requestNotificationPermission()" style="background: #2980b9; color: white;">通知を許可する</button>
+</div>
 </div>
     </div>
 
@@ -644,6 +652,31 @@ function getCharacterImage(char) {
              style="height: 80px; width: auto; display: block; margin: 0 auto 5px; object-fit: contain;" 
              onerror="this.style.display='none'; this.nextSibling.style.display='block';">
              <span style="display:none; font-size:1.5rem;">${getColorEmoji(char.color)}</span>`;
+}
+// 通知の許可を求める関数
+function requestNotificationPermission() {
+    if (!("Notification" in window)) {
+        alert("このブラウザは通知に対応していません");
+        return;
+    }
+    Notification.requestPermission().then(permission => {
+        if (permission === "granted") {
+            showToast("通知がオンになったよ！");
+            // テスト通知
+            new Notification("The hours", { body: "通知設定が完了しました！", icon: "favicon.ico" });
+        }
+    });
+}
+
+// 通知を送る関数
+function sendGetReadyNotification() {
+    if (Notification.permission === "granted") {
+        new Notification("獲得可能！", {
+            body: "新しいモンスターをGETできるようになったよ！",
+            icon: "favicon.ico", // もしアイコンがあれば指定
+            tag: "get-ready" // 重複通知を防ぐ
+        });
+    }
 }
 init();
 </script>
