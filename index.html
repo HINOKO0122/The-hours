@@ -530,11 +530,21 @@ function switchTab(t) {
 }
 function calcOffline() {
     if (!gameData.activeCharId) return;
-    const diff = Math.floor((Date.now() - (gameData.lastUpdate || Date.now())) / 1000);
+    const now = Date.now();
+    const last = gameData.lastUpdate || now;
+    const diff = Math.floor((now - last) / 1000);
+    
     if (diff > 0) {
         const char = gameData.characters.find(c => c.id === gameData.activeCharId);
-        if (char) gameData.money += getFullIncome(char) * diff;
+        if (char) {
+            const addedMoney = getFullIncome(char) * diff;
+            gameData.money += addedMoney;
+            console.log(diff + "秒分の放置収益を加算: " + addedMoney);
+        }
     }
+    // 計算が終わったら「最後に更新した時間」を今にする
+    gameData.lastUpdate = now;
+    save();
 }
 function cleanBadData() {
     gameData.characters = gameData.characters.filter(c => c && c.type && c.type !== "undefined");
@@ -676,6 +686,14 @@ function sendGetReadyNotification() {
         });
     }
 }
+// 画面に戻ってきた（表示状態が変わった）ことを検知する
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+        console.log("復帰を検知：放置収益を計算します");
+        calcOffline(); // 隠れていた時間の収益を計算
+        renderAll();   // 画面を更新
+    }
+});
 init();
 </script>
 </body>
