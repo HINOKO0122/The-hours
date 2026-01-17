@@ -179,7 +179,7 @@
 
         <h3>・強くなるには...?</h3>
         <p>収益に影響するものを教えるね！<br>
-        「種族」「色」「個体値」「強化値」「図鑑の色コンプ率」「発見した最大個体値」「ログイン日数」だよ！</p>
+        「種族」「色」「個体値」「強化値」「全色コンプ達成数」「MAX個体値発見数」「ログイン日数」だよ！</p>
     </div>
 </div>
 
@@ -594,7 +594,7 @@ function renderZukan() {
             <small style="color:var(--accent);">強化値: +${bonusValue}</small><br>
             色:${colorCount}/9<br>
             最大個体値:${d.maxIV}
-            ${isComp ? '<span class="comp-text">全色コンプ★</span>' : ''}
+            ${isComp ? '<span class="comp-text">全色コンプ達成★</span>' : ''}
             ${isMaxIV ? '<span class="iv100-text">MAX個体値発見★</span>' : ''}
         </div>`;
     }).join('');
