@@ -110,11 +110,37 @@
     <button id="get-btn" class="main-btn" onclick="getCharacter()">GETする</button>
 
     <div class="tabs">
-        <button id="tab-storage" class="tab-btn active" onclick="switchTab('storage')">倉庫</button>
-        <button id="tab-shop" class="tab-btn" onclick="switchTab('shop')">ショップ</button>
-        <button id="tab-zukan" class="tab-btn" onclick="switchTab('zukan')">図鑑</button>
-    </div>
+    <button id="tab-storage" class="tab-btn active" onclick="switchTab('storage')">倉庫</button>
+    <button id="tab-shop" class="tab-btn" onclick="switchTab('shop')">ショップ</button>
+    <button id="tab-zukan" class="tab-btn" onclick="switchTab('zukan')">図鑑</button>
+    <button id="tab-slot" class="tab-btn" onclick="switchTab('slot')">スロット</button>
+</div>
 
+<section id="slot-sec" class="hidden">
+    <h2>🎰 運試しスロット</h2>
+    <div class="card" style="text-align: center;">
+        <div id="slot-display" style="font-size: 3rem; letter-spacing: 10px; margin: 20px 0; background: #333; color: #fff; padding: 25px; border-radius: 15px; border: 4px solid #ffd700; box-shadow: inset 0 0 10px #000;">❓❓❓</div>
+        
+        <div style="margin-bottom: 20px; font-weight: bold;">
+            <label>賭け金：</label>
+            <input type="number" id="bet-amount" value="1000" min="1" max="100000" style="width: 100px; padding: 8px; border-radius: 5px; border: 1px solid #ccc; font-size: 1.1rem; text-align: center;">
+            <button class="action-btn" style="background: #e67e22; color:white;" onclick="document.getElementById('bet-amount').value=100000">MAX</button>
+        </div>
+
+        <button id="spin-btn" class="action-btn" style="background: #e74c3c; color: white; width: 100%; font-size: 1.4rem; padding: 15px; border-radius: 50px;" onclick="playSlot()">レバーを叩く！</button>
+        
+        <div style="margin-top: 25px; text-align: left; font-size: 0.85rem; background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
+            <p style="text-align:center; font-weight:bold; margin-bottom:5px; border-bottom: 1px solid #ddd;">💰 配当表 (3つ揃い時)</p>
+            <div style="display: flex; justify-content: space-around;">
+                <span>🍒 16倍</span>
+                <span>🍋 38倍</span>
+                <span>🍇 125倍</span>
+                <span>🍈 1000倍</span>
+            </div>
+            <p style="font-size: 0.7rem; color: #999; margin-top: 5px; text-align: center;">※三つそれぞれの枠で 4:3:2:1 の確率で抽選されます</p>
+        </div>
+    </div>
+</section>
     <div id="storage-sec">
         <div style="display:flex; justify-content: space-between; margin-bottom:10px;">
             <b>倉庫: <span id="storage-usage">0/0</span></b>
@@ -522,10 +548,17 @@ function delChar(id) {
     }
 }
 function switchTab(t) {
-    ['storage','shop','zukan'].forEach(s => document.getElementById(s+'-sec').classList.add('hidden'));
+    // 表示・非表示の切り替え（slotを追加）
+    ['storage','shop','zukan','slot'].forEach(s => {
+        const sec = document.getElementById(s+'-sec');
+        if(sec) sec.classList.add('hidden');
+    });
     document.getElementById(t+'-sec').classList.remove('hidden');
+
+    // ボタンのアクティブ状態を切り替え
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('tab-'+t).classList.add('active');
+    
     renderAll();
 }
 function calcOffline() {
@@ -694,6 +727,63 @@ document.addEventListener("visibilitychange", () => {
         renderAll();   // 画面を更新
     }
 });
+function playSlot() {
+    const betInput = document.getElementById('bet-amount');
+    let bet = parseInt(betInput.value);
+    
+    if (isNaN(bet) || bet <= 0) return showToast("賭け金を入力してね");
+    if (bet > 100000) { bet = 100000; betInput.value = 100000; }
+    if (gameData.money < bet) return showToast("お金が足りないよ！");
+
+    // お金を引いて保存
+    gameData.money -= bet;
+    save();
+    renderAll();
+
+    const btn = document.getElementById('spin-btn');
+    const display = document.getElementById('slot-display');
+    btn.disabled = true;
+    display.innerText = "🌀🌀🌀";
+
+    setTimeout(() => {
+        const result = [];
+        const symbols = [
+            { name: "🍒", prob: 0.40, multi: 16 },
+            { name: "🍋", prob: 0.30, multi: 38 },
+            { name: "🍇", prob: 0.20, multi: 125 },
+            { name: "🍈", prob: 0.10, multi: 1000 }
+        ];
+
+        // 各リールの抽選
+        for (let i = 0; i < 3; i++) {
+            let r = Math.random();
+            let acc = 0;
+            for (const s of symbols) {
+                acc += s.prob;
+                if (r < acc) {
+                    result.push(s);
+                    break;
+                }
+            }
+        }
+
+        display.innerText = result.map(s => s.name).join("");
+
+        // 当たり判定
+        if (result[0].name === result[1].name && result[1].name === result[2].name) {
+            const winSymbol = result[0];
+            const prize = bet * winSymbol.multi;
+            gameData.money += prize;
+            specialEffect(`おめでとう！ ${winSymbol.name}が揃って ${prize.toLocaleString()}円 獲得！`);
+        } else {
+            showToast("ハズレ...！");
+        }
+
+        btn.disabled = false;
+        save();
+        renderAll();
+    }, 800); // 0.8秒待って結果表示
+}
 init();
 </script>
 </body>
