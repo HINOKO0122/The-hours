@@ -103,7 +103,7 @@
         <div>金貨: <span id="money">0</span></div>
         <div>収益: <span id="income">0</span>/s</div>
         <div class="status-full">セット中: <span id="active-name">なし</span></div>
-        <div class="status-full">累計ログイン: <span id="log-days">0</span>日</div>
+        <div class="status-full">累計ログイン日数: <span id="log-days">0</span>日</div>
     </div>
 
     <div id="timer">確認中...</div>
@@ -179,7 +179,7 @@
 
         <h3>・強くなるには...?</h3>
         <p>収益に影響するものを教えるね！<br>
-        「種族」「色」「個体値」「強化値」「全色コンプ達成数」「MAX個体値発見数」「ログイン日数」だよ！</p>
+        「種族」「色」「個体値」「強化値」「全色コンプ達成数」「MAX個体値発見数」「累計ログイン日数」だよ！</p>
     </div>
 </div>
 
@@ -455,7 +455,7 @@ function gameLoop() {
     const btn = document.getElementById('get-btn');
     if (rem > 0) {
         const m = Math.floor(rem/60000), s = Math.floor((rem%60000)/1000);
-        document.getElementById('timer').innerText = `次まで ${m}分 ${s}秒`;
+        document.getElementById('timer').innerText = `次のGETまで ${m}分 ${s}秒`;
         btn.disabled = true;
     } else { 
         document.getElementById('timer').innerText = "獲得可能！"; 
@@ -594,8 +594,8 @@ function renderZukan() {
             <small style="color:var(--accent);">強化値: +${bonusValue}</small><br>
             色:${colorCount}/9<br>
             最大個体値:${d.maxIV}
-            ${isComp ? '<span class="comp-text">全色コンプ達成★</span>' : ''}
-            ${isMaxIV ? '<span class="iv100-text">MAX個体値発見★</span>' : ''}
+            ${isComp ? '<span class="comp-text">★全色コンプ達成★</span>' : ''}
+            ${isMaxIV ? '<span class="iv100-text">★MAX個体値発見★</span>' : ''}
         </div>`;
     }).join('');
 }
