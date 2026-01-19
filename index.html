@@ -434,31 +434,32 @@ function buy(type, price) {
 }
 let purchaseInterval = null;
 let purchaseTimeout = null;
+let isLongPressing = false;
 
 // 長押し開始
 function startLongPress(type, price) {
-    // 最初の1個を購入
+    // 最初の1回を購入
     buy(type, price);
+    isLongPressing = false; // まだ長押しではない
 
-    // 1秒後に連打モードへ移行
+    // 0.5秒以上押し続けたら「連打モード」へ
     purchaseTimeout = setTimeout(() => {
+        isLongPressing = true; // ここから長押しモード確定
         purchaseInterval = setInterval(() => {
-            // お金が足りなくなったら自動停止
-            if (gameData.money < price) {
-                stopLongPress();
-                return;
+            if (gameData.money < price) { 
+                stopLongPress(); 
+                return; 
             }
             buy(type, price);
-        }, 100); // 0.1秒間隔
-    }, 1000); // 1秒待機
+        }, 100); // 0.1秒間隔で連打
+    }, 500); // 0.5秒待ってから連打開始
 }
 
-// 長押し終了
 function stopLongPress() {
     clearTimeout(purchaseTimeout);
     clearInterval(purchaseInterval);
-    purchaseTimeout = null;
-    purchaseInterval = null;
+    // 指を離した直後のクリックイベントが暴発しないように少しだけ待機
+    setTimeout(() => { isLongPressing = false; }, 50);
 }
 function gameLoop() {
     let inc = 0, name = "なし";
