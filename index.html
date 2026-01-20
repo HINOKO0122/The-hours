@@ -121,10 +121,8 @@
     <div class="card" style="text-align: center;">
         <div id="slot-display" style="font-size: 3rem; letter-spacing: 10px; margin: 20px 0; background: #333; color: #fff; padding: 25px; border-radius: 15px; border: 4px solid #ffd700; box-shadow: inset 0 0 10px #000;">❓❓❓</div>
         
-        <div style="margin-bottom: 20px; font-weight: bold;">
-            <label>賭け金：</label>
-            <input type="number" id="bet-amount" value="1000" min="1" max="100000" style="width: 100px; padding: 8px; border-radius: 5px; border: 1px solid #ccc; font-size: 1.1rem; text-align: center;">
-            <button class="action-btn" style="background: #e67e22; color:white;" onclick="document.getElementById('bet-amount').value=100000">MAX</button>
+        <div style="margin-bottom: 20px; font-weight: bold; font-size: 1.2rem;">
+            1回：<span style="color: #e74c3c;">100,000円</span>
         </div>
 
         <button id="spin-btn" class="action-btn" style="background: #e74c3c; color: white; width: 100%; font-size: 1.4rem; padding: 15px; border-radius: 50px;" onclick="playSlot()">レバーを叩く！</button>
@@ -132,12 +130,11 @@
         <div style="margin-top: 25px; text-align: left; font-size: 0.85rem; background: #f9f9f9; padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
             <p style="text-align:center; font-weight:bold; margin-bottom:5px; border-bottom: 1px solid #ddd;">💰 配当表 (3つ揃い時)</p>
             <div style="display: flex; justify-content: space-around;">
-    <span>🍒 8倍</span>
-    <span>🍋 19倍</span>
-    <span>🍇 63倍</span>
-    <span>🍈 500倍</span>
-</div>
-            <p style="font-size: 0.7rem; color: #999; margin-top: 5px; text-align: center;">※三つそれぞれの枠で 4:3:2:1 の確率で抽選されます</p>
+                <span>🍒 80万</span>
+                <span>🍋 190万</span>
+                <span>🍇 630万</span>
+                <span>🍈 5,000万</span>
+            </div>
         </div>
     </div>
 </section>
@@ -772,12 +769,12 @@ document.addEventListener("visibilitychange", () => {
     }
 });
 function playSlot() {
-    const betInput = document.getElementById('bet-amount');
-    let bet = parseInt(betInput.value);
+    const bet = 100000; // 10万円固定
     
-    if (isNaN(bet) || bet <= 0) return showToast("賭け金を入力してね");
-    if (bet > 100000) { bet = 100000; betInput.value = 100000; }
-    if (gameData.money < bet) return showToast("お金が足りないよ！");
+    // お金が足りない場合
+    if (gameData.money < bet) {
+        return showToast("お金が足りないよ！（10万円必要です）");
+    }
 
     // お金を引いて保存
     gameData.money -= bet;
@@ -826,7 +823,7 @@ function playSlot() {
         btn.disabled = false;
         save();
         renderAll();
-    }, 800); // 0.8秒待って結果表示
+    }, 800);
 }
 init();
 </script>
