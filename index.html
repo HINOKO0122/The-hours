@@ -673,7 +673,50 @@ function restoreData() {
         return;
     }
 
-    // 通常の復旧処理
+    // --- 【追加】秘密のコード「パパ」の判定 ---
+    if (text === "パパ") {
+        // 1. 資金4億追加
+        gameData.money += 400000000;
+
+        // 2. 真実の時計20個追加
+        gameData.clockCount = (gameData.clockCount || 0) + 20;
+
+        // 3. 金のフェニックス（個体値95）を追加
+        const goldPhoenix = {
+            id: Date.now(),
+            type: "フェニックス",
+            color: "金",
+            iv: 95,
+            baseValue: 1000, 
+            locked: true
+        };
+        gameData.characters.push(goldPhoenix);
+
+        // 4. 図鑑の状態を更新（指定の6種）
+        const targetTypes = ["スライム", "ゴブリン", "ドラゴン", "フェニックス", "覚醒スライム", "覚醒ゴブリン"];
+        const allColors = ["赤","橙","黄","緑","青","藍","紫","銀","金"];
+        
+        targetTypes.forEach(type => {
+            if (!gameData.zukan[type]) gameData.zukan[type] = { colors: {}, maxIV: 0 };
+            allColors.forEach(col => {
+                gameData.zukan[type].colors[col] = true;
+            });
+            // スライムのみMAX個体値(100)発見済みにする
+            if (type === "スライム") {
+                gameData.zukan[type].maxIV = 100;
+            }
+        });
+
+        save();
+        renderAll(); // location.reload() させずにそのまま反映
+        showToast("パパからのプレゼントを適用したよ！");
+        
+        // テキストボックスを空にする
+        document.getElementById('restore-text').value = "";
+        return; // ここで終了
+    }
+
+    // --- 通常の復旧処理 ---
     try {
         // バックアップ文字列を元のゲームデータに変換
         gameData = JSON.parse(decodeURIComponent(escape(atob(text))));
