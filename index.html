@@ -241,8 +241,8 @@ function getCharacter() {
     const getCount = isFirstToday ? 2 : 1;
     const maxSpace = 3 + (gameData.storageLevel || 0);
 
-    const wait = 3600000 * Math.pow(0.99, gameData.clockCount || 0);
-    if (Date.now() - (gameData.lastGetTime || 0) < wait) return;
+    const wait = Math.max(60000, 3600000 * Math.pow(0.99, gameData.clockCount || 0));
+if (Date.now() - (gameData.lastGetTime || 0) < wait) return;
 
     if (gameData.characters.length + getCount > maxSpace) {
         showToast("倉庫がいっぱいで受け取れません！");
@@ -300,7 +300,7 @@ function renderStorage() {
 
 function renderShop() {
     const list = document.getElementById('shop-list');
-    const currentWaitMs = 3600000 * Math.pow(0.99, gameData.clockCount || 0);
+    const currentWaitMs = Math.max(60000, 3600000 * Math.pow(0.99, gameData.clockCount || 0));
     const totalSeconds = Math.floor(currentWaitMs / 1000);
     const displayMinutes = Math.floor(totalSeconds / 60);
     const displaySeconds = totalSeconds % 60;
@@ -375,6 +375,16 @@ function getColorEmoji(colorName) {
 }
 
 function buy(type, price) {
+    // ▼ここから追加：時計の限界チェック
+    if (type === 'c') {
+        const currentWaitMs = Math.max(60000, 3600000 * Math.pow(0.99, gameData.clockCount || 0));
+        if (currentWaitMs <= 60000) {
+            stopLongPress(); // 長押し連打を強制ストップ
+            return showToast("限界到達！これ以上短縮できません");
+        }
+    }
+    // ▲ここまで
+
     if (gameData.money < price) return showToast("お金不足");
     gameData.money -= price;
     if(type==='s') gameData.storageLevel++;
@@ -420,8 +430,8 @@ function gameLoop() {
     document.getElementById('active-name').innerText = name;
     document.getElementById('log-days').innerText = gameData.logDays || 0;
     
-    const wait = 3600000 * Math.pow(0.99, gameData.clockCount || 0);
-    const rem = wait - (Date.now() - (gameData.lastGetTime || 0));
+    const wait = Math.max(60000, 3600000 * Math.pow(0.99, gameData.clockCount || 0));
+const rem = wait - (Date.now() - (gameData.lastGetTime || 0));
     const btn = document.getElementById('get-btn');
     if (rem > 0) {
         const m = Math.floor(rem/60000), s = Math.floor((rem%60000)/1000);
