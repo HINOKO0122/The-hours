@@ -567,10 +567,30 @@ function renderZukan() {
     }).join('');
 }
 
+// バックアップを生成して共有（保存）を促す
 async function generateAndShareBackup() {
-    const code = btoa(unescape(encodeURIComponent(JSON.stringify(gameData))));
+    const jsonStr = JSON.stringify(gameData);
+    let code = "";
+    
+    try {
+        // 新しい圧縮方法（ブラウザ標準のデータ圧縮を使用）
+        const stream = new Blob([jsonStr]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+        const buffer = await new Response(stream).arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        // 新しいフォーマットの目印として先頭に「V2_」をつける
+        code = "V2_" + btoa(binary);
+    } catch (e) {
+        // 万が一、非対応の古いブラウザだった場合は今までの方法で出力
+        code = btoa(unescape(encodeURIComponent(jsonStr)));
+    }
+
     const textarea = document.getElementById('backup-text');
     textarea.value = code;
+
     if (navigator.share) {
         try { await navigator.share({ title: 'The hours バックアップ', text: code }); showToast("共有画面を開いたよ！"); } 
         catch (err) { console.log("Share cancelled"); }
@@ -580,27 +600,42 @@ async function generateAndShareBackup() {
     }
 }
 
-function restoreData() {
+// データを復元する
+async function restoreData() {
     const text = document.getElementById('restore-text').value.trim();
     if (!text) { showToast("コードを貼り付けてね"); return; }
-    if (text === "パパ") {
-        gameData.money += 400000000;
-        gameData.clockCount = (gameData.clockCount || 0) + 20;
-        gameData.characters.push({ id: Date.now(), type: "フェニックス", color: "金", iv: 95, locked: true });
-        ["スライム", "ゴブリン", "ドラゴン", "フェニックス", "覚醒スライム", "覚醒ゴブリン"].forEach(type => {
-            if (!gameData.zukan[type]) gameData.zukan[type] = { colors: {}, maxIV: 0 };
-            ["赤","橙","黄","緑","青","藍","紫","銀","金"].forEach(col => { gameData.zukan[type].colors[col] = true; });
-            if (type === "スライム") gameData.zukan[type].maxIV = 100;
-        });
-        save(); renderAll(); showToast("パパからのプレゼントを適用したよ！");
-        document.getElementById('restore-text').value = "";
-        return; 
-    }
+
     try {
-        gameData = JSON.parse(decodeURIComponent(escape(atob(text))));
-        if(!gameData.myListings) gameData.myListings = [];
-        save(); location.reload();
-    } catch(e) { showToast("コードが正しくないよ"); }
+        let parsedData = null;
+        
+        // 「V2_」から始まる場合は新しい圧縮方式で解凍
+        if (text.startsWith("V2_")) {
+            const base64Data = text.substring(3); // "V2_"を取り除く
+            const binaryStr = atob(base64Data);
+            const bytes = new Uint8Array(binaryStr.length);
+            for (let i = 0; i < binaryStr.length; i++) {
+                bytes[i] = binaryStr.charCodeAt(i);
+            }
+            const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+            const decompressedText = await new Response(stream).text();
+            parsedData = JSON.parse(decompressedText);
+        } 
+        // 「V2_」がない場合は過去の長いデータとして解凍（後方互換性）
+        else {
+            parsedData = JSON.parse(decodeURIComponent(escape(atob(text))));
+        }
+
+        if (parsedData) {
+            gameData = parsedData;
+            // バザー用の配列がない古いデータへの対応
+            if(!gameData.myListings) gameData.myListings = [];
+            save(); 
+            location.reload();
+        }
+    } catch(e) { 
+        console.error(e); // 開発者ツールでエラー原因を見やすくするため
+        showToast("コードが正しくないよ"); 
+    }
 }
 
 function renderAll() { renderStorage(); renderShop(); renderZukan(); }
