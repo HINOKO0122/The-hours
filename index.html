@@ -157,7 +157,7 @@
 // ==========================================
 // ★ ここにGASのウェブアプリURLを貼り付けてください ★
 // ==========================================
-const GAS_URL = "https://script.google.com/macros/s/AKfycbyKpTmIuKl_7KEkfRUBikN0xiKYxslKCRX286a_yrz9O0d8wI_5QXPjEPhY-0H9-ZICjw/exec"; 
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwjwKREY4k2VJQi-5Zp0SGBrfJ5-Z2A7-rpiSUOCp4uNBImXbpeXKqyDm7mBE5rR0YQoA/exec"; 
 
 const SAVE_KEY = 'TheHours_v8';
 let config = null;
@@ -632,7 +632,7 @@ document.addEventListener("visibilitychange", () => {
 // ==========================================
 
 async function callGAS(payload) {
-    if (!GAS_URL || GAS_URL === "https://script.google.com/macros/s/AKfycbyKpTmIuKl_7KEkfRUBikN0xiKYxslKCRX286a_yrz9O0d8wI_5QXPjEPhY-0H9-ZICjw/exec") {
+    if (!GAS_URL || GAS_URL === "ここにGASのWebアプリURLを貼り付けてください") {
         showToast("バザー機能を利用するにはGASのURLを設定してください");
         return null;
     }
