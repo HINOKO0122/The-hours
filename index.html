@@ -163,6 +163,8 @@ const SAVE_KEY = 'TheHours_v8';
 let config = null;
 let currentBazaarData = { activeListings: [], myListings: [] }; // バザーの一時データ
 
+let isBazaarProcessing = false;
+
 let gameData = {
     userId: "", // ユーザー識別用ID
     money: 0, characters: [], activeCharId: null, lastGetTime: 0, lastUpdate: Date.now(),
@@ -687,6 +689,8 @@ async function callGAS(payload) {
 
 // 出品する
 async function sellOnBazaar(id) {
+    if (isBazaarProcessing) return showToast("通信中です。少しお待ちください...");
+    
     const char = gameData.characters.find(c => c.id === id);
     if (!char) return;
     if (char.id === gameData.activeCharId) return showToast("セット中のキャラは出品できません");
@@ -696,6 +700,9 @@ async function sellOnBazaar(id) {
     const price = parseInt(priceStr);
     if (isNaN(price) || price <= 0) return showToast("正しい金額を入力してください");
 
+    // ここからロック開始
+    isBazaarProcessing = true; 
+    
     const listingId = "list_" + Date.now();
     const payload = {
         action: "list", listingId: listingId, userId: gameData.userId,
@@ -703,16 +710,20 @@ async function sellOnBazaar(id) {
     };
 
     const result = await callGAS(payload);
+    
     if (result && result.success) {
-        // キャラを倉庫から消して出品リストに記録
+        // 成功した時のみキャラを倉庫から消して出品リストに記録
         gameData.characters = gameData.characters.filter(c => c.id !== id);
         gameData.myListings.push({ id: listingId, type: char.type, color: char.color, iv: char.iv, price: price });
         save();
-        renderStorage();
+        renderAll(); // 倉庫の容量などを即反映
         showToast("バザーに出品しました！");
     } else {
         showToast("出品に失敗しました");
     }
+    
+    // ロック解除
+    isBazaarProcessing = false; 
 }
 
 // バザー情報の取得と表示
@@ -789,52 +800,85 @@ function renderBazaarItems() {
 
 // バザーで購入
 async function buyFromBazaar(listingId, price, type, color, iv) {
+    if (isBazaarProcessing) return showToast("通信中です...");
     if (gameData.money < price) return showToast("お金が足りません");
+    
     const maxSpace = 3 + (gameData.storageLevel || 0);
     if (gameData.characters.length >= maxSpace) return showToast("倉庫がいっぱいで受け取れません");
 
     if (!confirm(`${price.toLocaleString()}円で ${color}の${type} を購入しますか？`)) return;
 
+    // ロック開始
+    isBazaarProcessing = true;
+    
     const payload = { action: "buy", listingId: listingId };
     const result = await callGAS(payload);
 
     if (result && result.success) {
         gameData.money -= price;
-        const newChar = { id: Date.now(), type: type, color: color, iv: parseInt(iv), locked: true };
+        
+        // 固有値（baseValue）を再取得してキャラを復元
+        const baseChar = config.characters.find(c => c.type === type);
+        const bValue = baseChar ? baseChar.baseValue : 100;
+        
+        const newChar = { id: Date.now(), type: type, color: color, iv: parseInt(iv), baseValue: bValue, locked: true };
         gameData.characters.push(newChar);
         updateZukan(newChar);
         save();
-        showToast("購入しました！");
-        fetchBazaar(); // リスト再取得
+        renderAll(); // ★ここで画面を更新し、お金の減少と倉庫への追加を即反映
+        showToast("購入しました！倉庫を確認してください");
+        fetchBazaar(); 
     } else {
         showToast(result ? result.message : "購入に失敗しました");
         fetchBazaar(); 
     }
+    
+    // ロック解除
+    isBazaarProcessing = false;
 }
 
 // 出品キャンセル
 async function cancelBazaar(listingId, type, color, iv) {
+    if (isBazaarProcessing) return showToast("通信中です...");
+    
     const maxSpace = 3 + (gameData.storageLevel || 0);
     if (gameData.characters.length >= maxSpace) {
         return showToast("倉庫に空きがないためキャンセルできません（受け取れません）");
     }
 
+    // ロック開始
+    isBazaarProcessing = true;
+    
     const payload = { action: "cancel", listingId: listingId, userId: gameData.userId };
     const result = await callGAS(payload);
 
     if (result && result.success) {
         gameData.myListings = gameData.myListings.filter(item => item.id !== listingId);
-        gameData.characters.push({ id: Date.now(), type: type, color: color, iv: parseInt(iv), locked: true });
+        
+        // 固有値（baseValue）を再取得してキャラを復元
+        const baseChar = config.characters.find(c => c.type === type);
+        const bValue = baseChar ? baseChar.baseValue : 100;
+        
+        gameData.characters.push({ id: Date.now(), type: type, color: color, iv: parseInt(iv), baseValue: bValue, locked: true });
         save();
+        renderAll(); // ★倉庫の表示を即反映
         showToast("出品をキャンセルして倉庫に戻しました");
         fetchBazaar();
     } else {
         showToast("キャンセルに失敗しました");
     }
+    
+    // ロック解除
+    isBazaarProcessing = false;
 }
 
 // 売上の受け取り
 async function claimSales(listingId, price) {
+    if (isBazaarProcessing) return showToast("通信中です...");
+    
+    // ロック開始
+    isBazaarProcessing = true;
+    
     const payload = { action: "claim", listingId: listingId, userId: gameData.userId };
     const result = await callGAS(payload);
 
@@ -842,11 +886,15 @@ async function claimSales(listingId, price) {
         gameData.money += parseInt(price);
         gameData.myListings = gameData.myListings.filter(item => item.id !== listingId);
         save();
+        renderAll(); // ★お金の表示を即反映
         showToast(`売上 ${parseInt(price).toLocaleString()}円 を受け取りました！`);
         fetchBazaar();
     } else {
         showToast("受け取りに失敗しました");
     }
+    
+    // ロック解除
+    isBazaarProcessing = false;
 }
 
 init();
