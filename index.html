@@ -133,7 +133,7 @@
         <p>1時間に1回ボタンを押すとランダムでモンスターをゲットできるよ！<br>ゲットしたモンスターをセットしてお金を稼いでもらおう！<br>セットしたモンスターだけがお金を稼ぐよ！<br>一日の最初のゲットは追加で一体プレゼント！<br>捨てるとその種族がほんの少しだけ強くなるよ！要らないモンスターは捨てちゃおう！</p>
 
         <h3>・バザーについて</h3>
-        <p>不要なモンスターや価値の高いモンスターをプレイヤー同士で売買できるよ！<br>出品中のモンスターは倉庫からいなくなるから注意してね。売れたら「自分の出品」から売上を受け取ろう！</p>
+        <p>ロックされていない不要なモンスターや価値の高いモンスターをプレイヤー同士で売買できるよ！<br>出品中のモンスターは倉庫からいなくなるから注意してね。売れたら「自分の出品」から売上を受け取ろう！</p>
 
         <h3>・ロック機能について</h3>
         <p>ゲットしたときに自動でキャラクターをロックしているよ！<br>ロックしていると捨てるボタン・出品ボタンが消えて、間違える可能性が減るよ！<br>キャラの右上の🔒マークを押すとロックのオンオフが変わるよ！</p>
@@ -323,7 +323,7 @@ function renderShop() {
         </div>
         <div class="card" style="text-align:left;">
             <b>真実の時計</b><br>
-            <small style="color: #666; display: block; margin-bottom: 5px;">クールタイムが所持数に応じて少し短くなるよ！</small>
+            <small style="color: #666; display: block; margin-bottom: 5px;">クールタイムが所持数に応じて少し短くなるよ！（最高1分まで）</small>
             <small>価格: 1億円 / <b>所持数: ${gameData.clockCount||0}個</b></small>
             <small style="display: block; margin-top: 5px;">現在：1時間 → <b>${displayMinutes}分${displaySeconds}秒</b></small>
             <button class="action-btn" onmousedown="startLongPress('c',100000000)" onmouseup="stopLongPress()" onmouseleave="stopLongPress()" ontouchstart="startLongPress('c',100000000)" ontouchend="stopLongPress()">購入（長押しで一気買い）</button>
