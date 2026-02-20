@@ -859,7 +859,9 @@ function renderBazaarItems() {
     }).join('');
 }
 
+// ==========================================
 // バザーで購入
+// ==========================================
 async function buyFromBazaar(listingId, price, type, color, iv) {
     if (isBazaarProcessing) return showToast("通信中です...");
     if (gameData.money < price) return showToast("お金が足りません");
@@ -869,8 +871,7 @@ async function buyFromBazaar(listingId, price, type, color, iv) {
 
     if (!confirm(`${formatMoney(price)}円で ${color}の${type} を購入しますか？`)) return;
 
-    // ロック開始
-    isBazaarProcessing = true;
+    isBazaarProcessing = true; // ロック開始
     
     const payload = { action: "buy", listingId: listingId };
     const result = await callGAS(payload);
@@ -878,7 +879,6 @@ async function buyFromBazaar(listingId, price, type, color, iv) {
     if (result && result.success) {
         gameData.money -= price;
         
-        // 固有値（baseValue）を再取得してキャラを復元
         const baseChar = config.characters.find(c => c.type === type);
         const bValue = baseChar ? baseChar.baseValue : 100;
         
@@ -886,59 +886,65 @@ async function buyFromBazaar(listingId, price, type, color, iv) {
         gameData.characters.push(newChar);
         updateZukan(newChar);
         save();
-        renderAll(); // ★ここで画面を更新し、お金の減少と倉庫への追加を即反映
+        renderAll(); // お金と倉庫を更新
+        
+        // ★追加：買った商品をバザー画面のリストから即座に消して表示を更新！
+        currentBazaarData.activeListings = currentBazaarData.activeListings.filter(item => item.listingId !== listingId);
+        renderBazaarItems();
+
         showToast("購入しました！倉庫を確認してください");
-        fetchBazaar(); 
     } else {
         showToast(result ? result.message : "購入に失敗しました");
-        fetchBazaar(); 
     }
     
-    // ロック解除
-    isBazaarProcessing = false;
+    isBazaarProcessing = false; // ロック解除
 }
 
+// ==========================================
 // 出品キャンセル
+// ==========================================
 async function cancelBazaar(listingId, type, color, iv) {
     if (isBazaarProcessing) return showToast("通信中です...");
     
     const maxSpace = 3 + (gameData.storageLevel || 0);
     if (gameData.characters.length >= maxSpace) {
-        return showToast("倉庫に空きがないためキャンセルできません（受け取れません）");
+        return showToast("倉庫に空きがないためキャンセルできません");
     }
 
-    // ロック開始
-    isBazaarProcessing = true;
+    isBazaarProcessing = true; // ロック開始
     
     const payload = { action: "cancel", listingId: listingId, userId: gameData.userId };
     const result = await callGAS(payload);
 
     if (result && result.success) {
+        // 保存用データから消す
         gameData.myListings = gameData.myListings.filter(item => item.id !== listingId);
         
-        // 固有値（baseValue）を再取得してキャラを復元
         const baseChar = config.characters.find(c => c.type === type);
         const bValue = baseChar ? baseChar.baseValue : 100;
         
         gameData.characters.push({ id: Date.now(), type: type, color: color, iv: parseInt(iv), baseValue: bValue, locked: true });
         save();
-        renderAll(); // ★倉庫の表示を即反映
+        renderAll(); // 倉庫を更新
+        
+        // ★追加：バザー画面のリストから即座に消して表示を更新する！
+        currentBazaarData.myListings = currentBazaarData.myListings.filter(item => item.listingId !== listingId);
+        renderBazaarItems();
+
         showToast("出品をキャンセルして倉庫に戻しました");
-        fetchBazaar();
     } else {
         showToast("キャンセルに失敗しました");
     }
     
-    // ロック解除
-    isBazaarProcessing = false;
+    isBazaarProcessing = false; // ロック解除
 }
 
+// ==========================================
 // 売上の受け取り
+// ==========================================
 async function claimSales(listingId, price) {
     if (isBazaarProcessing) return showToast("通信中です...");
-    
-    // ロック開始
-    isBazaarProcessing = true;
+    isBazaarProcessing = true; // ロック開始
     
     const payload = { action: "claim", listingId: listingId, userId: gameData.userId };
     const result = await callGAS(payload);
@@ -947,15 +953,18 @@ async function claimSales(listingId, price) {
         gameData.money += parseInt(price);
         gameData.myListings = gameData.myListings.filter(item => item.id !== listingId);
         save();
-        renderAll(); // ★お金の表示を即反映
+        renderAll(); // 所持金を更新
+        
+        // ★追加：バザー画面のリストから即座に消して表示を更新！
+        currentBazaarData.myListings = currentBazaarData.myListings.filter(item => item.listingId !== listingId);
+        renderBazaarItems();
+
         showToast(`売上 ${formatMoney(price)}円 を受け取りました！`);
-        fetchBazaar();
     } else {
         showToast("受け取りに失敗しました");
     }
     
-    // ロック解除
-    isBazaarProcessing = false;
+    isBazaarProcessing = false; // ロック解除
 }
 
 init();
