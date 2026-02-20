@@ -769,37 +769,53 @@ async function sellOnBazaar(id) {
     isBazaarProcessing = false; 
 }
 
-// バザー情報の取得と表示
+// ==========================================
+// バザー情報の取得（検索条件をGASに送る）
+// ==========================================
 async function fetchBazaar() {
-    const payload = { action: "fetch", userId: gameData.userId };
+    if (isBazaarProcessing) return;
+    isBazaarProcessing = true; // ロック開始
+
+    const listDiv = document.getElementById('bazaar-list');
+    if (listDiv) listDiv.innerHTML = "<div style='text-align:center; padding: 20px; color:var(--accent); font-weight:bold;'>🔄 検索中...</div>";
+
+    // 画面で選ばれている検索条件をまとめる
+    const payload = { 
+        action: "fetch", 
+        userId: gameData.userId,
+        filterType: document.getElementById('filter-type').value,
+        filterColor: document.getElementById('filter-color').value,
+        filterMinIv: parseInt(document.getElementById('filter-iv-min').value) || 1,
+        filterMaxIv: parseInt(document.getElementById('filter-iv-max').value) || 100
+    };
+    
     const result = await callGAS(payload);
     
     if (result && result.success) {
         currentBazaarData.activeListings = result.activeListings;
         currentBazaarData.myListings = result.myListings;
-        renderBazaarItems();
+        renderBazaarItems(); // 届いたデータをそのまま表示するだけ！
     } else {
-        showToast("データの取得に失敗しました");
+        showToast("通信エラーが発生しました");
+        if (listDiv) listDiv.innerHTML = "<div style='text-align:center; padding: 20px; color:red;'>取得失敗</div>";
     }
+
+    isBazaarProcessing = false; // ロック解除
 }
 
-// バザー一覧の描画
+// ==========================================
+// バザー一覧の描画（届いたデータを並べるだけ）
+// ==========================================
 function renderBazaarItems() {
     const listDiv = document.getElementById('bazaar-list');
     const myArea = document.getElementById('my-bazaar-area');
     const myListDiv = document.getElementById('my-bazaar-list');
     
-    // ★グリッド（2列表示）のクラスを外して縦1列にする
+    // グリッドを外して縦1列（スッキリ版）にする
     listDiv.classList.remove('grid');
     myListDiv.classList.remove('grid');
-    
-    // フィルター値の取得
-    const fType = document.getElementById('filter-type').value;
-    const fColor = document.getElementById('filter-color').value;
-    const fMin = parseInt(document.getElementById('filter-iv-min').value) || 1;
-    const fMax = parseInt(document.getElementById('filter-iv-max').value) || 100;
 
-    // --- 自分の出品の表示（スッキリ版） ---
+    // --- 自分の出品の表示 ---
     if (currentBazaarData.myListings.length > 0) {
         myArea.style.display = "block";
         myListDiv.innerHTML = currentBazaarData.myListings.map(item => {
@@ -822,25 +838,14 @@ function renderBazaarItems() {
         myArea.style.display = "none";
     }
 
-    // --- 全体の出品表示（フィルター適用） ---
-    let filtered = currentBazaarData.activeListings.filter(item => {
-        if (item.sellerId === gameData.userId) return false; 
-        if (fType !== "all" && item.type !== fType) return false;
-        if (fColor !== "all" && item.color !== fColor) return false;
-        if (item.iv < fMin || item.iv > fMax) return false;
-        return true;
-    });
-
-    // ★ここで上位30件だけに絞る！スマホの負荷と画面の邪魔くささを激減させます
-    filtered = filtered.slice(0, 30);
-
-    if (filtered.length === 0) {
-        listDiv.innerHTML = "<div style='text-align:center; padding: 20px; color:#666;'>出品がありません</div>";
+    // --- 他人の出品の表示 ---
+    if (currentBazaarData.activeListings.length === 0) {
+        listDiv.innerHTML = "<div style='text-align:center; padding: 20px; color:#666;'>出品が見つかりません</div>";
         return;
     }
 
-    // --- 他人の出品の表示（スッキリ版） ---
-    listDiv.innerHTML = filtered.map(item => {
+    // すでにGAS側で検索＆30件に絞られているので、そのまま並べるだけ！
+    listDiv.innerHTML = currentBazaarData.activeListings.map(item => {
         return `<div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 5px; background: #fff;">
             <div style="text-align: left; line-height: 1.3;">
                 <span style="font-size: 0.75rem; color: #666;">${item.color}</span> <b style="font-size: 0.95rem;">${item.type}</b><br>
@@ -848,7 +853,7 @@ function renderBazaarItems() {
             </div>
             <div style="text-align: right;">
                 <b style="color: var(--danger); font-size: 0.95rem; display: block; margin-bottom: 3px;">${formatMoney(item.price)}円</b>
-                <button class="action-btn" style="margin: 0; padding: 5px 15px; width: auto; background: var(--accent); color: white;" onclick="buyFromBazaar('${item.listingId}', ${item.price}, '${item.type}', '${item.color}', ${item.iv})">購入する</button>
+                <button class="action-btn" style="margin: 0; padding: 5px 15px; width: auto; background: var(--accent); color: white;" onclick="buyFromBazaar('${item.listingId}', ${item.price}, '${item.type}', '${item.color}', ${item.iv})">購入</button>
             </div>
         </div>`;
     }).join('');
