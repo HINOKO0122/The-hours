@@ -174,6 +174,49 @@ let gameData = {
     myListings: [] // エクスポート用：出品中のアイテム情報を保持
 };
 
+// --- ここから追加 ---
+// 数字を「万・億・兆」の表示に変換する関数
+function formatMoney(num) {
+    if (num < 10000) return num.toLocaleString();
+    const units = [
+        { val: 1000000000000, name: "兆" },
+        { val: 100000000, name: "億" },
+        { val: 10000, name: "万" }
+    ];
+    let result = "";
+    let remainder = parseInt(num);
+    for (const u of units) {
+        if (remainder >= u.val) {
+            const count = Math.floor(remainder / u.val);
+            result += count + u.name;
+            remainder %= u.val;
+        }
+    }
+    if (remainder > 0) result += remainder.toLocaleString();
+    return result;
+}
+
+// 「1億500万」や「1.5億」などの文字を数字に変換する関数
+function parseMoney(str) {
+    if (!str) return NaN;
+    // スペースやカンマ、円などの文字を取り除き、全角数字を半角にする
+    str = str.replace(/[ 　,円]/g, '').replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+    // もし普通の数字だけならそのまま数値化
+    if (/^\d+$/.test(str)) return parseInt(str, 10);
+
+    let total = 0, numStr = "";
+    for (let i = 0; i < str.length; i++) {
+        const char = str[i];
+        if (/\d/.test(char) || char === '.') numStr += char;
+        else if (char === '兆') { total += parseFloat(numStr || "1") * 1000000000000; numStr = ""; }
+        else if (char === '億') { total += parseFloat(numStr || "1") * 100000000; numStr = ""; }
+        else if (char === '万') { total += parseFloat(numStr || "1") * 10000; numStr = ""; }
+    }
+    if (numStr.length > 0) total += parseFloat(numStr);
+    return Math.floor(total);
+}
+// --- ここまで追加 ---
+
 async function init() {
     try {
         const res = await fetch('config.json');
@@ -695,11 +738,11 @@ async function sellOnBazaar(id) {
     if (!char) return;
     if (char.id === gameData.activeCharId) return showToast("セット中のキャラは出品できません");
 
-    const priceStr = prompt(`${char.color}の${char.type} (個体値:${char.iv})\nいくらで出品しますか？`);
+    // 入力例を表示して、parseMoneyで変換する
+    const priceStr = prompt(`${char.color}の${char.type} (個体値:${char.iv})\nいくらで出品しますか？\n（例：100万、1.5億、50000）`);
     if (!priceStr) return;
-    const price = parseInt(priceStr);
+    const price = parseMoney(priceStr); // ここで単位を数字に変換
     if (isNaN(price) || price <= 0) return showToast("正しい金額を入力してください");
-
     // ここからロック開始
     isBazaarProcessing = true; 
     
@@ -767,7 +810,7 @@ function renderBazaarItems() {
                     <span style="font-size: 0.8rem; color: #27ae60;">個体値: ${item.iv}</span>
                 </div>
                 <div style="text-align: right;">
-                    <b style="color: var(--danger); font-size: 0.95rem; display: block; margin-bottom: 3px;">${parseInt(item.price).toLocaleString()}円</b>
+                    <b style="color: var(--danger); font-size: 0.95rem; display: block; margin-bottom: 3px;">${formatMoney(item.price)}円</b>
                     ${isSold 
                         ? `<button class="action-btn" style="margin: 0; padding: 5px 15px; width: auto; background: var(--danger); color: white;" onclick="claimSales('${item.listingId}', ${item.price})">売上受取🎉</button>`
                         : `<button class="action-btn" style="margin: 0; padding: 5px 10px; width: auto;" onclick="cancelBazaar('${item.listingId}', '${item.type}', '${item.color}', ${item.iv})">キャンセル</button>`
@@ -804,7 +847,7 @@ function renderBazaarItems() {
                 <span style="font-size: 0.8rem; color: #27ae60;">個体値: ${item.iv}</span>
             </div>
             <div style="text-align: right;">
-                <b style="color: var(--danger); font-size: 0.95rem; display: block; margin-bottom: 3px;">${parseInt(item.price).toLocaleString()}円</b>
+                <b style="color: var(--danger); font-size: 0.95rem; display: block; margin-bottom: 3px;">${formatMoney(item.price)}円</b>
                 <button class="action-btn" style="margin: 0; padding: 5px 15px; width: auto; background: var(--accent); color: white;" onclick="buyFromBazaar('${item.listingId}', ${item.price}, '${item.type}', '${item.color}', ${item.iv})">購入する</button>
             </div>
         </div>`;
@@ -819,7 +862,7 @@ async function buyFromBazaar(listingId, price, type, color, iv) {
     const maxSpace = 3 + (gameData.storageLevel || 0);
     if (gameData.characters.length >= maxSpace) return showToast("倉庫がいっぱいで受け取れません");
 
-    if (!confirm(`${price.toLocaleString()}円で ${color}の${type} を購入しますか？`)) return;
+    if (!confirm(`${formatMoney(price)}円で ${color}の${type} を購入しますか？`)) return;
 
     // ロック開始
     isBazaarProcessing = true;
@@ -900,7 +943,7 @@ async function claimSales(listingId, price) {
         gameData.myListings = gameData.myListings.filter(item => item.id !== listingId);
         save();
         renderAll(); // ★お金の表示を即反映
-        showToast(`売上 ${parseInt(price).toLocaleString()}円 を受け取りました！`);
+        showToast(`売上 ${formatMoney(price)}円 を受け取りました！`);
         fetchBazaar();
     } else {
         showToast("受け取りに失敗しました");
