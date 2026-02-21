@@ -137,6 +137,9 @@
         <h3>・遊び方</h3>
         <p>1時間に1回ボタンを押すとランダムでモンスターをゲットできるよ！<br>ゲットしたモンスターをセットしてお金を稼いでもらおう！<br>セットしたモンスターだけがお金を稼ぐよ！<br>一日の最初のゲットは追加で一体プレゼント！<br>捨てるとその種族がほんの少しだけ強くなるよ！要らないモンスターは捨てちゃおう！</p>
 
+        <h3>・データの保存方法</h3>h3>
+        <p>ウェブゲーの性質上、データが消えやすくなっております。<br>保存方法「ショップ」→「データを保存」→「文字列をメモ帳などにメモ」僕はLINEの一人グループに貼ってるよ<br>復元方法「データ復旧」→「保存していた文字列を貼り付ける」→「データを復旧」<br>「データを保存」を押した瞬間までのプレイデータを残せます。昨日データを保存してた場合、次の日にデータがなかった場合は昨日のデータを復旧してからやり直しとなります。<br></p>
+       
         <h3>・バザーについて</h3>
         <p>ロックされていない不要なモンスターや価値の高いモンスターをプレイヤー同士で売買できるよ！<br>出品中のモンスターは倉庫からいなくなるから注意してね。売れたら「自分の出品」から売上を受け取ろう！</p>
 
@@ -247,12 +250,24 @@ async function init() {
     } catch(e) { document.getElementById('timer').innerText = "Load Error"; }
 }
 
+// ==========================================
+// フィルターの初期化
+// ==========================================
 function initBazaarFilters() {
     if (!config) return;
     const typeSel = document.getElementById('filter-type');
     const colorSel = document.getElementById('filter-color');
+    
+    // 種族は今まで通りconfigから生成
     typeSel.innerHTML = '<option value="all">すべて</option>' + config.characters.map(c => `<option value="${c.type}">${c.type}</option>`).join('');
-    colorSel.innerHTML = '<option value="all">すべて</option>' + config.colors.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+    
+    // ★色フィルターを「金」「銀」「その他」の固定に変更
+    colorSel.innerHTML = `
+        <option value="all">すべて</option>
+        <option value="金">金</option>
+        <option value="銀">銀</option>
+        <option value="その他">その他</option>
+    `;
 }
 
 function generateSingleFate() {
