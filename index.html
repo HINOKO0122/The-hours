@@ -854,6 +854,8 @@ function renderBazaarItems() {
     myListDiv.classList.remove('grid');
 
     // --- 自分の出品の表示 ---
+    const claimAllBtn = document.getElementById('claim-all-btn');
+    if (claimAllBtn) claimAllBtn.style.display = currentBazaarData.myListings.some(item => item.status === 'sold') ? "block" : "none";
     if (currentBazaarData.myListings.length > 0) {
         myArea.style.display = "block";
         myListDiv.innerHTML = currentBazaarData.myListings.map(item => {
