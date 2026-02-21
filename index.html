@@ -107,7 +107,28 @@
 
     <section id="bazaar-sec" class="hidden">
         <h2>🛒 バザー</h2>
-        
+
+　　　　<div id="merchant-info" style="margin-bottom: 15px; padding: 15px; background: #fff; border-radius: 8px; border: 1px solid #ddd; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 5px;">
+                <b style="font-size: 1.1rem; color: var(--accent);">商人レベル: <span id="merchant-level">0</span></b>
+                <small style="color: #666;">購入 <span id="merchant-discount">0</span>%割引 / 売上 <span id="merchant-bonus">0</span>%UP</small>
+            </div>
+            <div style="background: #eee; border-radius: 10px; height: 12px; width: 100%; overflow: hidden; position: relative;">
+                <div id="merchant-progress" style="background: var(--accent); height: 100%; width: 0%; transition: width 0.3s;"></div>
+            </div>
+            <div style="text-align: right; font-size: 0.75rem; color: #666; margin-top: 3px;">
+                次のレベルまで: <span id="merchant-xp">0</span> / <span id="merchant-req-xp">1</span> 回取引
+            </div>
+        </div>
+
+        <div id="my-bazaar-area" style="margin-bottom: 20px; padding: 10px; border: 2px dashed var(--accent); border-radius: 8px; display: none;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <b style="color: var(--accent);">👑 自分の出品・売上(データ削減のため売り上げを受け取らずに30日間放置された売り上げは消えます。)</b>
+                <button id="claim-all-btn" class="action-btn" style="width: auto; margin: 0; padding: 5px 15px; background: var(--danger); color: white; display: none;" onclick="claimAllSales()">一括受取🎉</button>
+            </div>
+            <div id="my-bazaar-list" style="margin-top: 10px;"></div>
+        </div>
+
         <div style="margin-bottom: 15px; padding: 10px; background: #f9f9f9; border-radius: 8px; border: 1px solid #ddd;">
             <b>🔍 検索フィルター</b>
             <div class="filter-group" style="margin-top: 5px;">
@@ -123,15 +144,7 @@
             </div>
             <button class="action-btn" style="background: var(--accent); color: white;" onclick="fetchBazaar()">検索・更新</button>
         </div>
-
-        <div id="my-bazaar-area" style="margin-bottom: 20px; padding: 10px; border: 2px dashed var(--accent); border-radius: 8px; display: none;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <b style="color: var(--accent);">👑 自分の出品・売上(データ削減のため売り上げを受け取らずに30日間放置された売り上げは消えます。)</b>
-                <button id="claim-all-btn" class="action-btn" style="width: auto; margin: 0; padding: 5px 15px; background: var(--danger); color: white; display: none;" onclick="claimAllSales()">一括受取🎉</button>
-            </div>
-            <div id="my-bazaar-list" style="margin-top: 10px;"></div>
-        </div>
-
+        
         <b>出品一覧 (価格の安い順・上位30件のみ)</b>
         <div id="bazaar-list" class="grid" style="margin-top: 10px;"></div>
     </section>
@@ -184,6 +197,50 @@ let gameData = {
     discardCount: {},
     myListings: [] // エクスポート用：出品中のアイテム情報を保持
 };
+
+// ==========================================
+// 商人レベル機能
+// ==========================================
+function renderMerchantInfo() {
+    const lv = gameData.merchantLevel || 0;
+    const xp = gameData.merchantXp || 0;
+    const reqXp = Math.pow(2, lv); // 次のレベルには 2^Lv の経験値が必要
+    
+    document.getElementById('merchant-level').innerText = lv;
+    document.getElementById('merchant-discount').innerText = lv; // (100 - x)% なので割引率は x%
+    document.getElementById('merchant-bonus').innerText = lv;    // (100 + x)% なのでボーナスは x%
+    
+    document.getElementById('merchant-xp').innerText = xp;
+    document.getElementById('merchant-req-xp').innerText = reqXp;
+    
+    const progressPercent = Math.min((xp / reqXp) * 100, 100);
+    document.getElementById('merchant-progress').style.width = `${progressPercent}%`;
+}
+
+function addMerchantXp(amount) {
+    if (gameData.merchantLevel === undefined) gameData.merchantLevel = 0;
+    if (gameData.merchantXp === undefined) gameData.merchantXp = 0;
+
+    gameData.merchantXp += amount;
+    let leveledUp = false;
+    let reqXp = Math.pow(2, gameData.merchantLevel);
+    
+    // 経験値が足りている間は連続でレベルアップする
+    while (gameData.merchantXp >= reqXp) {
+        gameData.merchantXp -= reqXp;
+        gameData.merchantLevel++;
+        leveledUp = true;
+        reqXp = Math.pow(2, gameData.merchantLevel);
+    }
+    
+    save();
+    renderMerchantInfo();
+    
+    if (leveledUp) {
+        showToast(`商人レベルが ${gameData.merchantLevel} に上がった！`);
+        // 必要ならここで specialEffect("商人レベルアップ！"); などの演出を入れても良いです
+    }
+}
 
 // --- ここから追加 ---
 // 数字を「万・億・兆」の表示に変換する関数
@@ -586,8 +643,12 @@ function switchTab(t) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById('tab-'+t).classList.add('active');
     
-    if (t === 'bazaar') fetchBazaar(); // バザータブを開いた時に更新
-    else renderAll();
+    if (t === 'bazaar') {
+        renderMerchantInfo(); // ★追加：商人情報の描画
+        fetchBazaar();
+    } else {
+        renderAll();
+    }
 }
 
 function calcOffline() {
@@ -907,12 +968,19 @@ function renderBazaarItems() {
 // ==========================================
 async function buyFromBazaar(listingId, price, type, color, iv) {
     if (isBazaarProcessing) return showToast("通信中です...");
-    if (gameData.money < price) return showToast("お金が足りません");
+    
+    // ★商人レベルによる割引計算（端数切り捨て）
+    const lv = gameData.merchantLevel || 0;
+    const actualPrice = Math.floor(price * (100 - lv) / 100);
+    
+    if (gameData.money < actualPrice) return showToast("お金が足りません");
     
     const maxSpace = 3 + (gameData.storageLevel || 0);
     if (gameData.characters.length >= maxSpace) return showToast("倉庫がいっぱいで受け取れません");
 
-    if (!confirm(`${formatMoney(price)}円で ${color}の${type} を購入しますか？`)) return;
+    // ★割引されていることが分かるようにプロンプトを親切にする
+    const priceText = lv > 0 ? `${formatMoney(actualPrice)}円 (Lv.${lv}割引)` : `${formatMoney(actualPrice)}円`;
+    if (!confirm(`${priceText} で ${color}の${type} を購入しますか？\n（元値: ${formatMoney(price)}円）`)) return;
 
     isBazaarProcessing = true; // ロック開始
     
@@ -920,7 +988,7 @@ async function buyFromBazaar(listingId, price, type, color, iv) {
     const result = await callGAS(payload);
 
     if (result && result.success) {
-        gameData.money -= price;
+        gameData.money -= actualPrice; // ★割引された金額だけ引く
         
         const baseChar = config.characters.find(c => c.type === type);
         const bValue = baseChar ? baseChar.baseValue : 100;
@@ -928,8 +996,11 @@ async function buyFromBazaar(listingId, price, type, color, iv) {
         const newChar = { id: Date.now(), type: type, color: color, iv: parseInt(iv), baseValue: bValue, locked: true };
         gameData.characters.push(newChar);
         updateZukan(newChar);
+        
+        addMerchantXp(1); // ★購入成功で経験値+1
+        
         save();
-        renderAll(); // お金と倉庫を更新
+        renderAll();
         
         // ★追加：買った商品をバザー画面のリストから即座に消して表示を更新！
         currentBazaarData.activeListings = currentBazaarData.activeListings.filter(item => item.listingId !== listingId);
@@ -1002,21 +1073,24 @@ async function claimSales(listingId, price) {
     const result = await callGAS(payload);
 
     if (result && result.success) {
-        gameData.money += parseInt(price);
+        // ★商人レベルによるボーナス計算
+        const lv = gameData.merchantLevel || 0;
+        const actualClaim = Math.floor(price * (100 + lv) / 100);
+        
+        gameData.money += actualClaim; // ★ボーナス込みの金額をもらう
         gameData.myListings = gameData.myListings.filter(item => item.id !== listingId);
         
-        // ★ 追加：埋め込んだキャラ固有IDを取り出す
         const parts = listingId.split('_');
         const originalId = parts.length === 3 ? parseInt(parts[1]) : null;
 
-        // ★ 増殖バグチェック：キャラを持ったまま売上を受け取ろうとした場合
         if (originalId && gameData.characters.some(c => c.id === originalId)) {
-            // 倉庫に残っている不正なコピーキャラを強制没収する
             gameData.characters = gameData.characters.filter(c => c.id !== originalId);
-            showToast(`⚠️重複を検知したため、倉庫のコピーキャラを回収して売上 ${formatMoney(price)}円 を受け取りました`);
+            showToast(`⚠️重複を検知したため、倉庫のコピーキャラを回収して売上 ${formatMoney(actualClaim)}円 を受け取りました`);
         } else {
-            showToast(`売上 ${formatMoney(price)}円 を受け取りました！`);
+            showToast(`売上 ${formatMoney(actualClaim)}円 を受け取りました！`); // ★表示もボーナス込み
         }
+
+        addMerchantXp(1); // ★受け取り成功で経験値+1
 
         save();
         renderAll();
@@ -1042,9 +1116,12 @@ async function claimAllSales() {
 
     if (result && result.success) {
         if (result.totalClaimed > 0) {
-            gameData.money += result.totalClaimed;
+            // ★商人レベルによるボーナス計算
+            const lv = gameData.merchantLevel || 0;
+            const actualTotalClaim = Math.floor(result.totalClaimed * (100 + lv) / 100);
             
-            // コピー増殖バグの没収チェック（一括版）
+            gameData.money += actualTotalClaim;
+            
             let removedCopies = 0;
             result.claimedIds.forEach(listingId => {
                 const parts = listingId.split('_');
@@ -1059,14 +1136,17 @@ async function claimAllSales() {
             gameData.myListings = gameData.myListings.filter(item => !result.claimedIds.includes(item.id));
             currentBazaarData.myListings = currentBazaarData.myListings.filter(item => !result.claimedIds.includes(item.listingId));
             
+            // ★一括回収した個数分、まとめて経験値を追加！！
+            addMerchantXp(result.claimedIds.length);
+            
             save();
             renderAll();
             renderBazaarItems();
 
             if (removedCopies > 0) {
-                showToast(`⚠️重複コピーを回収し、売上 ${formatMoney(result.totalClaimed)}円 を一括で受け取りました`);
+                showToast(`⚠️重複コピーを回収し、売上 ${formatMoney(actualTotalClaim)}円 を一括で受け取りました`);
             } else {
-                showToast(`一括で ${formatMoney(result.totalClaimed)}円 を受け取りました！`);
+                showToast(`一括で ${formatMoney(actualTotalClaim)}円 を受け取りました！`);
             }
         } else {
             showToast("受け取れる売上がありませんでした");
