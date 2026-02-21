@@ -286,18 +286,29 @@ function getCharacter() {
     const getCount = isFirstToday ? 2 : 1;
     const maxSpace = 3 + (gameData.storageLevel || 0);
 
+    // クールタイムの計算
     const wait = Math.max(60000, 3600000 * Math.pow(0.99, gameData.clockCount || 0));
-if (Date.now() - (gameData.lastGetTime || 0) < wait) return;
+    if (Date.now() - (gameData.lastGetTime || 0) < wait) return;
 
     if (gameData.characters.length + getCount > maxSpace) {
         showToast("倉庫がいっぱいで受け取れません！");
         return; 
     }
 
+    // ★追加：アカウント作成後、一度もGETしたことがない初期状態かを判定
+    const isFirstEver = (!gameData.lastGetTime || gameData.lastGetTime === 0);
+
     for(let i=0; i<getCount; i++) {
         let fate = gameData.nextFateList.shift();
         if (!fate) fate = generateSingleFate();
         
+        // ★追加：一番最初のGET（リセマラ対策）の強制上書き処理
+        if (isFirstEver) {
+            fate.type = "スライム";
+            fate.iv = Math.floor(Math.random() * 50) + 1; // 1〜50のランダム
+            fate.baseValue = 100; // スライムの基本収益値
+        }
+
         const newChar = { id: Date.now() + i, ...fate, locked: true }; 
         gameData.characters.push(newChar);
         updateZukan(newChar);
@@ -314,7 +325,13 @@ if (Date.now() - (gameData.lastGetTime || 0) < wait) return;
     autoSetBestCharacter();
     save(); 
     renderAll();
-    showToast(getCount === 2 ? "ボーナス含め2体GET！" : "モンスターをGETした！");
+    
+    // 初回なら特別なメッセージを出すのもアリです
+    if (isFirstEver) {
+        showToast("最初のモンスターを2体GETした！");
+    } else {
+        showToast(getCount === 2 ? "ボーナス含め2体GET！" : "モンスターをGETした！");
+    }
 }
 
 function renderStorage() {
