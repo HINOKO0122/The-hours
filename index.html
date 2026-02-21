@@ -747,7 +747,9 @@ async function callGAS(payload) {
     }
 }
 
+// ==========================================
 // 出品する
+// ==========================================
 async function sellOnBazaar(id) {
     if (isBazaarProcessing) return showToast("通信中です。少しお待ちください...");
     
@@ -755,15 +757,15 @@ async function sellOnBazaar(id) {
     if (!char) return;
     if (char.id === gameData.activeCharId) return showToast("セット中のキャラは出品できません");
 
-    // 入力例を表示して、parseMoneyで変換する
     const priceStr = prompt(`${char.color}の${char.type} (個体値:${char.iv})\nいくらで出品しますか？\n（例：100万、1.5億、50000）`);
     if (!priceStr) return;
-    const price = parseMoney(priceStr); // ここで単位を数字に変換
+    const price = parseMoney(priceStr);
     if (isNaN(price) || price <= 0) return showToast("正しい金額を入力してください");
-    // ここからロック開始
-    isBazaarProcessing = true; 
+
+    isBazaarProcessing = true; // ロック開始
     
-    const listingId = "list_" + Date.now();
+    // ★ 変更：出品IDに「キャラの固有ID(char.id)」を暗号のように埋め込む！
+    const listingId = "list_" + char.id + "_" + Date.now();
     const payload = {
         action: "list", listingId: listingId, userId: gameData.userId,
         type: char.type, color: char.color, iv: char.iv, price: price
@@ -772,18 +774,17 @@ async function sellOnBazaar(id) {
     const result = await callGAS(payload);
     
     if (result && result.success) {
-        // 成功した時のみキャラを倉庫から消して出品リストに記録
         gameData.characters = gameData.characters.filter(c => c.id !== id);
+        // 保存用配列に出品データを記録
         gameData.myListings.push({ id: listingId, type: char.type, color: char.color, iv: char.iv, price: price });
         save();
-        renderAll(); // 倉庫の容量などを即反映
+        renderAll();
         showToast("バザーに出品しました！");
     } else {
         showToast("出品に失敗しました");
     }
     
-    // ロック解除
-    isBazaarProcessing = false; 
+    isBazaarProcessing = false; // ロック解除
 }
 
 // ==========================================
@@ -934,21 +935,30 @@ async function cancelBazaar(listingId, type, color, iv) {
     const result = await callGAS(payload);
 
     if (result && result.success) {
-        // 保存用データから消す
         gameData.myListings = gameData.myListings.filter(item => item.id !== listingId);
         
-        const baseChar = config.characters.find(c => c.type === type);
-        const bValue = baseChar ? baseChar.baseValue : 100;
-        
-        gameData.characters.push({ id: Date.now(), type: type, color: color, iv: parseInt(iv), baseValue: bValue, locked: true });
+        // ★ 追加：埋め込んだキャラ固有IDを取り出す
+        const parts = listingId.split('_');
+        const originalId = parts.length === 3 ? parseInt(parts[1]) : null;
+
+        // ★ 増殖バグチェック：倉庫にすでに同じIDのキャラがいたら復元した証拠！
+        if (originalId && gameData.characters.some(c => c.id === originalId)) {
+            showToast("⚠️データ復元による重複を検知しました。キャンセルしたキャラは破棄されます。");
+        } else {
+            // 不正がなければ倉庫に返す
+            const baseChar = config.characters.find(c => c.type === type);
+            const bValue = baseChar ? baseChar.baseValue : 100;
+            // 元の固有IDを持たせたまま倉庫に戻す
+            const newId = originalId || Date.now();
+            gameData.characters.push({ id: newId, type: type, color: color, iv: parseInt(iv), baseValue: bValue, locked: true });
+            showToast("出品をキャンセルして倉庫に戻しました");
+        }
+
         save();
-        renderAll(); // 倉庫を更新
+        renderAll(); 
         
-        // ★追加：バザー画面のリストから即座に消して表示を更新する！
         currentBazaarData.myListings = currentBazaarData.myListings.filter(item => item.listingId !== listingId);
         renderBazaarItems();
-
-        showToast("出品をキャンセルして倉庫に戻しました");
     } else {
         showToast("キャンセルに失敗しました");
     }
@@ -969,14 +979,25 @@ async function claimSales(listingId, price) {
     if (result && result.success) {
         gameData.money += parseInt(price);
         gameData.myListings = gameData.myListings.filter(item => item.id !== listingId);
-        save();
-        renderAll(); // 所持金を更新
         
-        // ★追加：バザー画面のリストから即座に消して表示を更新！
+        // ★ 追加：埋め込んだキャラ固有IDを取り出す
+        const parts = listingId.split('_');
+        const originalId = parts.length === 3 ? parseInt(parts[1]) : null;
+
+        // ★ 増殖バグチェック：キャラを持ったまま売上を受け取ろうとした場合
+        if (originalId && gameData.characters.some(c => c.id === originalId)) {
+            // 倉庫に残っている不正なコピーキャラを強制没収する
+            gameData.characters = gameData.characters.filter(c => c.id !== originalId);
+            showToast(`⚠️重複を検知したため、倉庫のコピーキャラを回収して売上 ${formatMoney(price)}円 を受け取りました`);
+        } else {
+            showToast(`売上 ${formatMoney(price)}円 を受け取りました！`);
+        }
+
+        save();
+        renderAll();
+        
         currentBazaarData.myListings = currentBazaarData.myListings.filter(item => item.listingId !== listingId);
         renderBazaarItems();
-
-        showToast(`売上 ${formatMoney(price)}円 を受け取りました！`);
     } else {
         showToast("受け取りに失敗しました");
     }
