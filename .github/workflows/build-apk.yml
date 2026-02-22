@@ -34,13 +34,15 @@ jobs:
           npx cap add android
           npx cap copy android
 
-      - name: Fix Kotlin Duplicates
+      - name: Force Resolve Dependencies
         run: |
-          # 重複エラーを強制的に無視する設定をAndroidプロジェクトに書き込む
-          echo "android.useAndroidX=true" >> android/gradle.properties
-          echo "android.enableJetifier=true" >> android/gradle.properties
-          # 重複したクラスを強制的に解決する設定
-          echo "kotlin.stdlib.default.dependency=false" >> android/gradle.properties
+          # 1. Jetifierをあえてオフにする（重複の主な原因になるため）
+          echo "android.useAndroidX=true" > android/gradle.properties
+          echo "android.enableJetifier=false" >> android/gradle.properties
+          
+          # 2. build.gradleを書き換えて、重複ファイルを「最初に見つけたものを使う」設定にする
+          # これが重複エラーを黙らせる最強の呪文です
+          sed -i '/android {/a \    packagingOptions {\n        pickFirst "**/kotlin-stdlib-jdk8.jar"\n        pickFirst "**/kotlin-stdlib-jdk7.jar"\n        pickFirst "**/kotlin-stdlib.jar"\n    }' android/app/build.gradle
 
       - name: Build APK
         run: |
