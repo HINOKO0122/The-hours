@@ -23,30 +23,30 @@ jobs:
 
       - name: Prepare Project
         run: |
-          # 1. 不足している package.json をその場で作る
-          if [ ! -f package.json ]; then
-            echo '{"name": "the-hours", "version": "1.0.0"}' > package.json
-          fi
+          # 1. package.json の作成
+          echo '{"name": "the-hours", "version": "1.0.0"}' > package.json
           
-          # 2. 必要なツールをインストール
+          # 2. アプリ用フォルダ 'www' を作り、ゲームファイルをコピー
+          # (.gitなどは除外して、純粋なゲームファイルだけをまとめます)
+          mkdir www
+          cp -r * www/ || true
+          
+          # 3. 必要なツールをインストール
           npm install @capacitor/cli @capacitor/core @capacitor/android
 
       - name: Setup Capacitor
         run: |
-          # 3. 初期化（--web-dir "." は index.html が直下にある前提）
-          npx cap init "The Hours" "com.hinoko.thehours" --web-dir "."
+          # 4. 初期化 (web-dir をさっき作った 'www' に指定)
+          npx cap init "The Hours" "com.hinoko.thehours" --web-dir "www"
           
-          # 4. Androidプロジェクトの追加
+          # 5. Androidプロジェクトの追加と同期
           npx cap add android
-          
-          # 5. ウェブのファイルをAndroid側にコピー
           npx cap copy android
 
       - name: Build APK
         run: |
           cd android
           chmod +x gradlew
-          # デバッグ用APKを作成
           ./gradlew assembleDebug
 
       - name: Upload APK
