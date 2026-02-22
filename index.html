@@ -311,26 +311,6 @@ async function init() {
 }
 
 // ==========================================
-// バザーのクールタイム（利用制限）チェック
-// ==========================================
-function checkBazaarCooldown() {
-    // 復元した履歴がない場合はそのままOK
-    if (!gameData.lastRestoredTime) return true;
-
-    const passedTime = Date.now() - gameData.lastRestoredTime;
-    const cooldown = 24 * 60 * 60 * 1000; // 24時間をミリ秒で計算
-
-    // 24時間経過していなければエラーメッセージを出してブロック
-    if (passedTime < cooldown) {
-        const remainHours = Math.ceil((cooldown - passedTime) / (60 * 60 * 1000));
-        showToast(`データ復元直後は不正防止のためバザーを利用できません（残り約 ${remainHours} 時間）`);
-        return false;
-    }
-    
-    return true; // 24時間以上経っていればOK
-}
-
-// ==========================================
 // フィルターの初期化
 // ==========================================
 function initBazaarFilters() {
@@ -798,7 +778,6 @@ async function restoreData() {
             gameData = parsedData;
             if(!gameData.myListings) gameData.myListings = [];
             if(!gameData.usedCodes) gameData.usedCodes = {}; // 復旧データにも履歴箱を用意
-            gameData.lastRestoredTime = Date.now();
             save(); 
             location.reload();
         }
@@ -858,7 +837,6 @@ async function callGAS(payload) {
 // 出品する
 // ==========================================
 async function sellOnBazaar(id) {
-    if (!checkBazaarCooldown()) return;
     if (isBazaarProcessing) return showToast("通信中です。少しお待ちください...");
     
     const char = gameData.characters.find(c => c.id === id);
@@ -991,7 +969,6 @@ function renderBazaarItems() {
 // バザーで購入
 // ==========================================
 async function buyFromBazaar(listingId, price, type, color, iv) {
-    if (!checkBazaarCooldown()) return;
     if (isBazaarProcessing) return showToast("通信中です...");
     
     // ★商人レベルによる割引計算（端数切り捨て）
