@@ -1,0 +1,28 @@
+name: Build Android APK
+on:
+  push:
+    branches: [ main, master ] # あなたのメインブランチ名に合わせてください
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      # ここで「Bubblewrap」というGoogle製のツールを使ってAPK化します
+      - name: Build with Bubblewrap
+        run: |
+          npm install -g @bubblewrap/cli
+          # 初期設定を自動で行い、ビルドする命令（簡易版）
+          # ※本来は詳細設定が必要ですが、まずはツールが動くか試します
+          bubblewrap build
