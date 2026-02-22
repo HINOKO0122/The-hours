@@ -10,6 +10,12 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -17,20 +23,18 @@ jobs:
 
       - name: Build APK with Bubblewrap
         run: |
-          # Google公式の変換ツールをインストール
           npm install -g @bubblewrap/cli
+          # 質問にすべて「yes」と答えるように設定して初期化
+          yes | bubblewrap init --manifest="https://hinoko0122.github.io/The-hours/manifest.json" --meta --no-interaction
           
-          # 初期設定ファイルを自動生成（対話なしで進める設定）
-          bubblewrap init --manifest="https://hinoko0122.github.io/The-hours/manifest.json" --meta --no-interaction
-          
-          # APKをビルド（署名はスキップ）
+          # 署名なしでビルドを強行
           bubblewrap build --skipSigning
           
-          # 出力先の確認用
-          ls -R
+          # apkファイルの名前を「app-debug.apk」に統一（後のステップで見つけやすくするため）
+          mv *.apk game-debug.apk || true
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: android-apk
-          path: ./*.apk
+          name: my-game-apk
+          path: game-debug.apk
