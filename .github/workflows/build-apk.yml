@@ -10,14 +10,27 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Build Android App
-        # 新しい公式アクション名に変更しました
-        uses: pwabuilder/pwa-action@v1
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          # ここにあなたのゲームのURLを入れてください（例: https://hinoko0122.github.io/The-hours/）
-          url: 'https://hinoko0122.github.io/The-hours/'
-          name: 'The hours'
-          # android だけで動くように指定
-          android-enabled: true
-          # 署名などの面倒な設定をスキップしてテスト用APKを作る設定
-          signing-key-path: ''
+          node-version: 20
+
+      - name: Build APK with Bubblewrap
+        run: |
+          # Google公式の変換ツールをインストール
+          npm install -g @bubblewrap/cli
+          
+          # 初期設定ファイルを自動生成（対話なしで進める設定）
+          bubblewrap init --manifest="https://hinoko0122.github.io/The-hours/manifest.json" --meta --no-interaction
+          
+          # APKをビルド（署名はスキップ）
+          bubblewrap build --skipSigning
+          
+          # 出力先の確認用
+          ls -R
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: ./*.apk
