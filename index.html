@@ -746,17 +746,54 @@ async function generateAndShareBackup() {
     }
 }
 
-// データを復元する
+// ==========================================
+// データを復元する（＆シークレットコード）
+// ==========================================
 async function restoreData() {
     const text = document.getElementById('restore-text').value.trim();
     if (!text) { showToast("コードを貼り付けてね"); return; }
+    
+    // コードの使用履歴を保存する箱を準備（なければ作る）
+    if (!gameData.usedCodes) gameData.usedCodes = {};
 
+    // 秘密のコード②「ふいあけ」（1回限定）
+    if (text === "ふいあけ") {
+        if (gameData.usedCodes["ふいあけ"]) {
+            showToast("このコードはすでに使用済みです");
+            document.getElementById('restore-text').value = "";
+            return;
+        }
+        
+        // 倉庫の空き容量チェック
+        const maxSpace = 3 + (gameData.storageLevel || 0);
+        if (gameData.characters.length >= maxSpace) {
+            showToast("倉庫がいっぱいで受け取れません！空きを作ってね");
+            return;
+        }
+
+        // 受け取り処理
+        gameData.usedCodes["ふいあけ"] = true; // 使用済みにする
+        
+        const baseChar = config.characters.find(c => c.type === "覚醒ドラゴン");
+        const bValue = baseChar ? baseChar.baseValue : 4000;
+        
+        const newChar = { id: Date.now(), type: "覚醒ドラゴン", color: "金", iv: 55, baseValue: bValue, locked: true };
+        gameData.characters.push(newChar);
+        updateZukan(newChar); // 図鑑も更新
+        
+        save(); 
+        renderAll(); 
+        showToast("✨特典コード成功！金の覚醒ドラゴンをGET！");
+        document.getElementById('restore-text').value = "";
+        return; 
+    }
+
+    // --- 以下、通常のデータ復旧処理 ---
     try {
         let parsedData = null;
         
-        // 「V2_」から始まる場合は新しい圧縮方式で解凍
         if (text.startsWith("V2_")) {
-            const base64Data = text.substring(3); // "V2_"を取り除く
+            const base64Data = text.substring(3);
             const binaryStr = atob(base64Data);
             const bytes = new Uint8Array(binaryStr.length);
             for (let i = 0; i < binaryStr.length; i++) {
@@ -765,25 +802,22 @@ async function restoreData() {
             const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
             const decompressedText = await new Response(stream).text();
             parsedData = JSON.parse(decompressedText);
-        } 
-        // 「V2_」がない場合は過去の長いデータとして解凍（後方互換性）
-        else {
+        } else {
             parsedData = JSON.parse(decodeURIComponent(escape(atob(text))));
         }
 
         if (parsedData) {
             gameData = parsedData;
-            // バザー用の配列がない古いデータへの対応
             if(!gameData.myListings) gameData.myListings = [];
+            if(!gameData.usedCodes) gameData.usedCodes = {}; // 復旧データにも履歴箱を用意
             save(); 
             location.reload();
         }
     } catch(e) { 
-        console.error(e); // 開発者ツールでエラー原因を見やすくするため
+        console.error(e);
         showToast("コードが正しくないよ"); 
     }
 }
-
 function renderAll() { renderStorage(); renderShop(); renderZukan(); }
 function getCharacterImage(type, color) {
     return `<img src="images/${type}_${color}.png" alt="${type}" 
