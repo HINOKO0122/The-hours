@@ -16,23 +16,39 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # 1. 最小限のAndroidプロジェクトをその場で作成
-      - name: Setup Android Project
-        run: |
-          npm install -g @capacitor/cli @capacitor/core @capacitor/android
-          # プロジェクトを初期化
-          npx cap init "The Hours" "com.hinoko.thehours" --web-dir "."
-          # Androidのガワ（フォルダ）を追加
-          npx cap add android
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
 
-      # 2. ビルド
+      - name: Prepare Project
+        run: |
+          # 1. 不足している package.json をその場で作る
+          if [ ! -f package.json ]; then
+            echo '{"name": "the-hours", "version": "1.0.0"}' > package.json
+          fi
+          
+          # 2. 必要なツールをインストール
+          npm install @capacitor/cli @capacitor/core @capacitor/android
+
+      - name: Setup Capacitor
+        run: |
+          # 3. 初期化（--web-dir "." は index.html が直下にある前提）
+          npx cap init "The Hours" "com.hinoko.thehours" --web-dir "."
+          
+          # 4. Androidプロジェクトの追加
+          npx cap add android
+          
+          # 5. ウェブのファイルをAndroid側にコピー
+          npx cap copy android
+
       - name: Build APK
         run: |
           cd android
           chmod +x gradlew
+          # デバッグ用APKを作成
           ./gradlew assembleDebug
 
-      # 3. APKを回収
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
