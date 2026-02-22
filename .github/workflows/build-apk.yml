@@ -16,29 +16,25 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
+      # 1. 最小限のAndroidプロジェクトをその場で作成
+      - name: Setup Android Project
+        run: |
+          npm install -g @capacitor/cli @capacitor/core @capacitor/android
+          # プロジェクトを初期化
+          npx cap init "The Hours" "com.hinoko.thehours" --web-dir "."
+          # Androidのガワ（フォルダ）を追加
+          npx cap add android
 
+      # 2. ビルド
       - name: Build APK
         run: |
-          # 1. ツールをインストール
-          npm install -g @bubblewrap/cli
-          
-          # 2. 質問を回避するためのダミー設定を作成
-          mkdir -p ~/.bubblewrap
-          echo "{\"jdkPath\":\"$JAVA_HOME\",\"androidSdkPath\":\"/usr/local/lib/android/sdk\"}" > ~/.bubblewrap/config.json
-          
-          # 3. 実行（--yes で全ての質問に自動回答し、ビルドまで一気に進む）
-          bubblewrap init --manifest="https://hinoko0122.github.io/The-hours/manifest.json" --meta --no-interaction
-          bubblewrap build --skipSigning --yes
-          
-          # 4. 生成されたapkを確認
-          ls -R
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
+      # 3. APKを回収
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: my-game-apk
-          path: "*.apk"
+          name: game-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
