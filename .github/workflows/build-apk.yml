@@ -24,13 +24,18 @@ jobs:
       - name: Build APK with Bubblewrap
         run: |
           npm install -g @bubblewrap/cli
-          # 質問にすべて「yes」と答えるように設定して初期化
-          yes | bubblewrap init --manifest="https://hinoko0122.github.io/The-hours/manifest.json" --meta --no-interaction
           
-          # 署名なしでビルドを強行
+          # BubblewrapにJavaとSDKの場所を「質問させずに」覚えさせる
+          mkdir -p ~/.bubblewrap
+          echo "{\"jdkPath\":\"$JAVA_HOME\",\"androidSdkPath\":\"/usr/local/lib/android/sdk\"}" > ~/.bubblewrap/config.json
+          
+          # 初期化（--meta を使って質問をスキップ）
+          bubblewrap init --manifest="https://hinoko0122.github.io/The-hours/manifest.json" --meta --no-interaction
+          
+          # ビルド実行（署名スキップ）
           bubblewrap build --skipSigning
           
-          # apkファイルの名前を「app-debug.apk」に統一（後のステップで見つけやすくするため）
+          # 名前を変更
           mv *.apk game-debug.apk || true
 
       - name: Upload APK
